@@ -17,7 +17,7 @@ Node 22（见 `.nvmrc`）。
 
 ## 仓库关系
 
-六个仓库的分工见技术方案第 02 章：`satchel`（主控、CLI、MCP）、`satchel-agent`（节点守护）、`satchel-web`（本仓库）、`satchel-plugins`（订阅解析库、家用测速端、skills）、`satchel-probe`（外置探针）、`satchel-docs`（文档站）。
+六个仓库的分工见技术方案第 02 章：`satchel`（主控、CLI、MCP、skills）、`satchel-agent`（节点守护）、`satchel-web`（本仓库）、`satchel-plugins`（订阅解析库、家用测速端）、`satchel-probe`（外置探针）、`satchel-docs`（文档站）。
 
 ## 许可证
 
