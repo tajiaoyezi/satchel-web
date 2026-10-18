@@ -1,0 +1,20 @@
+{
+  "title": "登录",
+  "actions": {
+    "submit": "登录",
+    "twoFactor": "两步验证",
+    "captcha": "人机验证"
+  },
+  "subtitle": "请输入账号以访问控制台。",
+  "username": "用户名",
+  "password": "密码",
+  "rememberMe": "记住我",
+  "submitting": "登录中…",
+  "twoFactorTitle": "两步验证",
+  "twoFactorHint": "输入验证器当前的 6 位码，或一枚恢复码。",
+  "code": "验证码或恢复码",
+  "verify": "验证",
+  "back": "返回重新登录",
+  "lockedUntil": "解锁时间：{{until}}",
+  "recoveryLow": "剩余恢复码不足两枚，请到账号页重新生成。"
+}

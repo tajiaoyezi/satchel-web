@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   check:
-    name: typecheck / build
+    name: typecheck / lint / test / text / build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -19,4 +19,11 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      # 界面文案必须在资源文件里（web-console「文案与 i18n」）。
+      - run: npm run check:text
       - run: npm run build
+      # 路由树由插件生成并提交；构建后不该有差异，有就是忘了提交。
+      - name: routeTree.gen.ts is up to date
+        run: git diff --exit-code src/routeTree.gen.ts

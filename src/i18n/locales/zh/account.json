@@ -1,0 +1,61 @@
+{
+  "title": "账号",
+  "actions": {
+    "show": "查看账号状态",
+    "setPassword": "改密码",
+    "totpSetup": "开启两步验证",
+    "totpConfirm": "确认两步验证",
+    "totpDisable": "关闭两步验证",
+    "regenerate": "重新生成恢复码",
+    "logout": "退出登录"
+  },
+  "info": {
+    "title": "账号状态",
+    "username": "用户名",
+    "role": "角色",
+    "email": "邮箱",
+    "totp": "两步验证",
+    "recoveryCodes": "剩余恢复码",
+    "sessions": "活动会话"
+  },
+  "roles": {
+    "admin": "管理员",
+    "user": "普通用户"
+  },
+  "on": "已开启",
+  "off": "未开启",
+  "recoveryLow": "剩余恢复码不足两枚，请重新生成。",
+  "password": {
+    "title": "改密码",
+    "description": "改完之后，这个账号的其它会话都会作废，当前这个保留。",
+    "current": "当前密码",
+    "new": "新密码（至少 8 个字符）",
+    "again": "再输一次新密码",
+    "code": "两步验证码或恢复码",
+    "mismatch": "两次输入的新密码不一致",
+    "submit": "改密码",
+    "done": "密码已修改，其它会话已作废"
+  },
+  "totp": {
+    "title": "两步验证",
+    "descriptionOff": "开启后，登录要在密码之外再输验证器的码。",
+    "descriptionOn": "登录要在密码之外再输验证器的码；手机丢了可以用恢复码。",
+    "enable": "开启两步验证",
+    "scan": "用验证器扫描这个二维码，或手工输入下面的密钥，然后填入验证器显示的 6 位码。",
+    "secret": "密钥：",
+    "code": "验证器当前的码",
+    "confirm": "确认开启",
+    "disable": "关闭两步验证",
+    "disableConfirm": "关闭之后登录只要密码，密钥与恢复码一并清掉。",
+    "regenerate": "重新生成恢复码",
+    "regenerateConfirm": "旧的恢复码会全部作废。",
+    "disabled": "两步验证已关闭"
+  },
+  "codes": {
+    "title": "恢复码",
+    "warning": "这些恢复码只显示这一次。每枚只能用一次，请保存到安全的地方。",
+    "copy": "复制全部",
+    "download": "下载成文本文件",
+    "saved": "我已保存"
+  }
+}

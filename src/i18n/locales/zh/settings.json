@@ -1,0 +1,85 @@
+{
+  "title": "系统设置",
+  "actions": {
+    "show": "读取设置",
+    "saveBranding": "保存品牌与外观",
+    "saveMasterUrl": "保存主控地址",
+    "saveGates": "保存门与登录防护",
+    "testTurnstile": "测试配置",
+    "updateCdn": "开关更新 CDN",
+    "snapshots": "查看写前快照",
+    "rollback": "回滚到快照"
+  },
+  "version": "当前版本 {{version}}",
+  "conflict": "别人刚改过系统设置。请重新读取，看过最新的值后再改。",
+  "saved": "已保存",
+  "branding": {
+    "title": "品牌与外观",
+    "description": "保存后首屏与登录页用新值，不用重启主控。",
+    "siteTitle": "站点标题（浏览器标签上的名字）",
+    "brandTitle": "品牌标题（登录页与导航上的名字）",
+    "logoUrl": "logo 地址",
+    "loginWallpaper": "登录壁纸地址",
+    "defaultTheme": "默认主题",
+    "notYet": "{{name}}（随前端末段交付，现在按扁平显示）"
+  },
+  "masterUrl": {
+    "title": "主控地址",
+    "description": "改的时候要当场验证。填干净的 HTTP(S) 地址，留空表示清掉。",
+    "url": "主控地址",
+    "subscriptionUrl": "订阅域名"
+  },
+  "gates": {
+    "title": "门与登录防护",
+    "description": "改的时候要当场验证。这一组不存写前快照。",
+    "masterLocalOnly": "关闭公网访问",
+    "silentMode": "静默模式",
+    "silentModeTimeout": "静默模式的时长（分钟）",
+    "probeDisguiseBlockLogin": "隐藏登录入口",
+    "loginRateMaxAttempts": "登录限流：时间窗内最多尝试几次",
+    "loginRateWindowMinutes": "登录限流：时间窗（分钟）",
+    "loginRateLockMinutes": "登录限流：超过后锁定多久（分钟）",
+    "bruteForceEnabled": "令牌猜测封禁",
+    "bruteForceMaxFailures": "封禁前允许失败几次",
+    "bruteForceWindowMinutes": "统计失败的时间窗（分钟）",
+    "bruteForceBlockMinutes": "封禁多久（分钟）",
+    "skipLocalIp": "不计本地与内网地址（限流与封禁跳过它们）",
+    "trustedProxies": "反代登记：JSON 数组，每项含 cidr 与 header 两个键",
+    "riskTitle": "保存后可能马上进不去",
+    "riskDescription": "你打开了关闭公网访问或静默模式。保存后，经公网打开的这个网页可能立刻进不去；主控本机的 CLI 不受影响，可以用它改回来。",
+    "riskConfirm": "仍然保存"
+  },
+  "turnstile": {
+    "title": "Turnstile",
+    "description": "两个 key 随门这一组一起保存。",
+    "siteKey": "site key",
+    "secretKey": "secret key（显示为 *** 时表示已保存，不改就原样交回）",
+    "testHint": "测试配置用已保存的 site key 显示组件，拿到 token 后由主控用已保存的 secret key 核对。",
+    "notSaved": "先保存 site key 与 secret key，才能测试配置。",
+    "passed": "核对通过",
+    "failed": "核对没通过",
+    "errorCodes": "错误码：{{codes}}",
+    "hostname": "hostname：{{hostname}}"
+  },
+  "updateCdn": {
+    "title": "更新 CDN",
+    "description": "关掉后，检查更新与下载直接走 GitHub。这个开关属于主控自身类危险操作，改之前要确认。",
+    "enabled": "使用更新 CDN",
+    "confirmOn": "打开更新 CDN",
+    "confirmOff": "关掉更新 CDN",
+    "confirmDescription": "确认后立刻生效，下一次检查更新就按新的开关走。"
+  },
+  "snapshots": {
+    "title": "写前快照与回滚",
+    "description": "每次改日常运维档的设置与回滚之前都会存一份快照。回滚把所选快照的内容当成一次设置写回。",
+    "id": "编号",
+    "objectVersion": "当时的版本",
+    "createdAt": "时间",
+    "source": "来源",
+    "empty": "还没有快照",
+    "rollback": "回滚",
+    "rollbackTitle": "回滚到快照 {{id}}",
+    "rollbackDescription": "把这份快照的内容写回系统设置；写回之前会先为当前的设置存一份快照。",
+    "loadMore": "加载更多"
+  }
+}

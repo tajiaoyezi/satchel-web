@@ -1,0 +1,14 @@
+{
+  "title": "总览",
+  "actions": {
+    "view": "查看总览"
+  },
+  "partitions": {
+    "servers": "服务器",
+    "users": "用户",
+    "alerts": "告警",
+    "tasks": "待办"
+  },
+  "comesWith": "这一块随 {{milestone}} 出现",
+  "total": "共 {{count}} 条"
+}

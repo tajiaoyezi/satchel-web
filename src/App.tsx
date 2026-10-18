@@ -1,9 +1,22 @@
-// M0 骨架：一页占位。前端骨架（TanStack Router、TailwindCSS 4、shadcn/ui、主题与 i18n 框架）随 M1 加入。
-export default function App() {
+import { QueryClientProvider, type QueryClient } from '@tanstack/react-query'
+import { RouterProvider } from '@tanstack/react-router'
+
+import { DialogsProvider } from './components/dialogs/DialogsProvider'
+import { TooltipProvider } from './components/ui/tooltip'
+import type { createAppRouter } from './router'
+import { ThemeProvider } from './theme/ThemeProvider'
+
+// App 把各层上下文接起来：React Query、主题、当场验证与确认对话框、路由。
+export function App({ queryClient, router }: { queryClient: QueryClient; router: ReturnType<typeof createAppRouter> }) {
   return (
-    <main>
-      <h1>Satchel</h1>
-      <p>网页前端骨架阶段，还没有可用页面。</p>
-    </main>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
+        <TooltipProvider>
+          <DialogsProvider>
+            <RouterProvider router={router} />
+          </DialogsProvider>
+        </TooltipProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
   )
 }

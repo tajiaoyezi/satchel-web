@@ -3,7 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Satchel</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- 两处占位由主控在给出页面时替换（master-web「首屏注入」）：站点标题与启动配置。 -->
+    <title>__SATCHEL_SITE_TITLE__</title>
+    <script id="satchel-boot" type="application/json">__SATCHEL_BOOT__</script>
+    <script src="/boot.js"></script>
   </head>
   <body>
     <div id="root"></div>

@@ -1,0 +1,35 @@
+{
+  "title": "初始化向导",
+  "actions": {
+    "status": "查看初始化状态",
+    "createAdmin": "建第一个管理员",
+    "restore": "从备份恢复"
+  },
+  "intro": "库里还没有用户。先建第一个管理员，或者把一份 Satchel 备份恢复进来。",
+  "warning": "初始化之前谁都能建这个管理员、也能上传备份。请先在主控本机或内网完成初始化，再把主控暴露到公网。",
+  "create": {
+    "title": "建第一个管理员",
+    "description": "用户名 3 到 32 个字符：小写字母、数字、_ 与 -，以字母或数字开头；密码至少 8 个字符。",
+    "username": "用户名",
+    "password": "密码",
+    "passwordAgain": "再输一次密码",
+    "email": "邮箱（可选）",
+    "mismatch": "两次输入的密码不一致",
+    "submit": "建管理员"
+  },
+  "restore": {
+    "title": "从备份恢复",
+    "description": "选一份 Satchel 备份（.zip）恢复整个主控。恢复后主控会重启，所有人要重新登录。",
+    "file": "备份文件",
+    "submit": "上传并恢复",
+    "uploading": "上传中：{{percent}}%",
+    "restarting": "恢复已受理，主控正在重启…",
+    "foreground": "主控如果是直接在前台跑的（没有 systemd 或 Docker 拉起），要手动再启动。",
+    "back": "主控已重新起来，正在进入登录页",
+    "stuck": "等了 5 分钟还是连不上主控。请到主控本机看它有没有起来（如 systemctl status satchel 或 docker compose ps）；恢复的备份如果打开了「关闭公网访问」，要在主控本机或经主控地址打开网页。查过后刷新本页。"
+  },
+  "import": {
+    "title": "导入 mmwx 备份",
+    "unavailable": "暂不可用"
+  }
+}

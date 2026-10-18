@@ -1,0 +1,59 @@
+{
+  "appName": "Satchel",
+  "actions": {
+    "save": "保存",
+    "cancel": "取消",
+    "confirm": "确认",
+    "close": "关闭",
+    "copy": "复制",
+    "copied": "已复制",
+    "download": "下载",
+    "retry": "重试",
+    "refresh": "重新读取",
+    "logout": "退出登录"
+  },
+  "errors": {
+    "unknown": "请求失败",
+    "next": "下一步：{{next}}"
+  },
+  "loading": "加载中…",
+  "nav": {
+    "overview": "总览",
+    "tokens": "API 令牌",
+    "settings": "系统设置"
+  },
+  "userMenu": {
+    "account": "账号",
+    "theme": "主题",
+    "mode": "亮暗",
+    "light": "亮色",
+    "dark": "暗色",
+    "system": "跟随系统",
+    "notYet": "随前端末段交付，现在按扁平显示"
+  },
+  "themes": {
+    "flat": "扁平",
+    "pixel": "像素",
+    "anime": "动漫",
+    "premium": "premium"
+  },
+  "verify": {
+    "title": "当场验证",
+    "description": "这是只有人能做的操作，请输入你的密码确认是本人。",
+    "password": "密码",
+    "code": "两步验证码或恢复码",
+    "codeHint": "账号开了两步验证时填验证器当前的码，或一枚恢复码。",
+    "showCode": "账号开了两步验证？",
+    "submit": "确认"
+  },
+  "confirmDialog": {
+    "value": "要确认的值：{{value}}"
+  },
+  "noPermission": {
+    "title": "没有权限",
+    "description": "这一页只对管理员开放。"
+  },
+  "turnstile": {
+    "loadFailed": "人机验证（Cloudflare Turnstile）的脚本没有加载出来。检查这台电脑能否连上 challenges.cloudflare.com，然后重试。"
+  }
+}
