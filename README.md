@@ -4,7 +4,7 @@ Satchel（百宝袋）的网页前端，对应 mmwx 的 miaomiaowux-frontend（�
 
 编译产物不进主控仓库：主控 `satchel` 按固定 tag 拉取本仓库构建，`go:embed` 进主控二进制，Docker 镜像同样。
 
-**状态：M1 第一批页面：登录（含两步验证的第二步与 Turnstile）、初始化向导、总览、账号、API 令牌（含谁在连）、系统设置。运维页随 m1-12。**
+**状态：M1 的十四页都已交付：登录（含两步验证的第二步与 Turnstile）、初始化向导、总览、账号、API 令牌（含谁在连）、系统设置（含 logo 与登录壁纸的上传），以及顶部「运维」菜单里只对管理员显示的日志、定时任务、长任务、审计、安全、备份与恢复、数据库、升级八页。**
 
 ## 技术栈
 
@@ -19,8 +19,9 @@ Node 22（见 `.nvmrc`）。
 ## 目录
 
 - `src/routes/`：页面。`_app.tsx` 是登录后的布局与守卫（空库进向导，没登录进登录页）。
-- `src/api/`：调用封装。`commands.ts` 是网页调用的命令与 REST 路由，`client.ts` 的 `run` 调一条命令，`session.ts` 是会话入口（登录、第二步、登出、验证码配置）。
-- `src/components/`：布局、当场验证与危险确认对话框、错误显示、Turnstile 组件，以及 shadcn/ui 的 `ui/`。
+- `src/api/`：调用封装。`commands.ts` 是网页调用的命令与 REST 路由，`client.ts` 的 `run` 调一条命令、`upload` 以文件本身作请求体（报告进度）、`download` 把下载类命令的回应存成文件，`session.ts` 是会话入口（登录、第二步、登出、验证码配置）。
+- `src/components/`：布局、只对管理员开放的页面外框（`AdminPage`）、当场验证与危险确认对话框、错误显示、长任务的进度（`JobProgress`）、Turnstile 组件，以及 shadcn/ui 的 `ui/`。
+- `src/lib/`：等主控重启（`restart.ts`）、跟长任务（`jobs.ts`：每秒查一次 `job get`，连不上主控最多接着查 2 分钟）、时间与字节数的显示（`format.ts`）。
 - `src/theme/`：主题框架。`public/boot.js` 在第一次绘制之前定好主题与亮暗。
 - `src/i18n/locales/zh/*.json`：界面文案，按页面分命名空间。
 - `src/manifest.ts`：页面清单（每页的「可见操作 → CLI 命令」）。
@@ -59,7 +60,7 @@ CI 依次跑这五步，并核对构建后 `src/routeTree.gen.ts` 没有差异�
 
 ## 端到端测试
 
-测试对一个空数据目录的主控按顺序跑：向导建管理员、开启两步验证、两步登录、令牌新建（用明文调 `whoami`）与吊销、改品牌后的登录页、Turnstile 测试配置与登录。它会建管理员、开两步验证、改设置，所以每次都要一个新的空库主控。
+测试对一个空数据目录的主控按顺序跑：向导建管理员、开启两步验证、两步登录、令牌新建（用明文调 `whoami`）与吊销、改品牌后的登录页、Turnstile 测试配置与登录，再跑运维：上传 logo 后登录页的图片加载成功、日志页与定时任务页、生成备份并跟到完成、下载这份备份（当场验证，大小与主控上的相同）、长任务页与审计页、封禁与解封。它会建管理员、开两步验证、改设置，所以每次都要一个新的空库主控。恢复备份、数据库迁移与升级会让主控退出，这里没有服务管理器把它拉起来，这三件事由组件测试覆盖。
 
 ```sh
 npx playwright install chromium
@@ -72,7 +73,7 @@ SATCHEL_E2E_URL=http://127.0.0.1:12889 npm run e2e
 
 ## 打 tag 与主控怎么拉取
 
-- 改完、CI 通过后打 tag（如 `v0.1.0`）并推送。
+- 改完、CI 通过后打 tag（如 `v0.2.0`）并推送。
 - 主控仓库的 `internal/projection/web/SATCHEL_WEB_REF` 记着用哪个 tag。主控的 `tools/web/build.sh` 按它浅克隆本仓库，执行 `npm ci && npm run build`（`SATCHEL_WEB_VERSION` 设成这个 tag），再把 `dist/` 放进主控编进二进制的目录。换网页版本就是在主控仓库改这个文件。
 - 开发时在主控仓库执行 `SATCHEL_WEB_DIR=../satchel-web tools/web/build.sh`，用本地的工作区，版本记成 `local`。
 - 页面或命令的路径改了而两边没有一起改时，主控 CI 里的清单核对会失败。

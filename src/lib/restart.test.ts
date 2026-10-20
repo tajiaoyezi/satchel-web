@@ -25,6 +25,15 @@ describe('waitForRestart', () => {
     expect(n).toBe(7)
   })
 
+  it('请求一直不回：每次超时算失败，照样等满上限就报错', async () => {
+    const c = clock()
+    let n = 0
+    const hang = (signal: AbortSignal) => (n++, new Promise((_, reject) => signal.addEventListener('abort', () => reject(signal.reason as Error))))
+    await expect(waitForRestart(hang, { ...c, intervalMs: 2000, downWaitMs: 10000, upWaitMs: 10000, timeoutMs: 20 })).rejects.toBeInstanceOf(RestartTimeout)
+    expect(c.now()).toBe(12000) // 第一次挂住就当作停下（2 秒），之后等满 10 秒
+    expect(n).toBe(6)
+  })
+
   it('停下之后一直连不上，等满上限就报错', async () => {
     const c = clock()
     const never = () => Promise.reject(new Error('down'))

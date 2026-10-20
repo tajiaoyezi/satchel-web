@@ -1,0 +1,55 @@
+{
+  "title": "备份与恢复",
+  "actions": {
+    "list": "列出备份",
+    "create": "生成备份",
+    "progress": "跟踪生成进度",
+    "upload": "上传备份",
+    "download": "下载备份",
+    "restore": "恢复备份",
+    "lastRestore": "查看上一次恢复"
+  },
+  "description": "主控本机 backups/ 里的整库备份，最多留 7 份。同一时刻只能有一次备份、上传、恢复、迁移或升级。",
+  "create": "生成",
+  "upload": "上传",
+  "uploading": "上传中：{{percent}}%",
+  "created": "生成了 {{name}}",
+  "uploaded": "已上传 {{name}}",
+  "columns": {
+    "name": "名字",
+    "size": "大小",
+    "createdAt": "生成时间",
+    "driver": "数据库"
+  },
+  "empty": "还没有备份",
+  "download": "下载",
+  "restore": "恢复",
+  "downloadHint": "下载会先把整份备份读进浏览器内存再保存；很大的备份建议在终端里用 satchel backup download。",
+  "saved": "已保存 {{name}}",
+  "restoreConfirm": {
+    "title": "用 {{name}} 恢复整个主控？",
+    "description": "主控会重启；数据会回到这份备份生成的那一刻；所有人都要重新登录；开了两步验证的账号，恢复码会作废并重发，新码写在主控本机数据目录的 recovery-codes/ 里。",
+    "confirm": "恢复"
+  },
+  "restarting": "恢复已受理，主控正在重启…",
+  "foreground": "主控如果是直接在前台跑的（没有 systemd 或 Docker 拉起），要手动再启动。",
+  "back": "主控已重新起来。",
+  "last": {
+    "title": "上一次恢复",
+    "source": "来源",
+    "backup": "备份",
+    "at": "时间",
+    "result": "结果",
+    "ok": "成功",
+    "failed": "失败",
+    "error": "原因：{{error}}",
+    "codes": "新恢复码在主控本机的这个文件里：{{file}}"
+  },
+  "sources": {
+    "manual": "手动恢复",
+    "setup": "初始化向导",
+    "auto": "库损坏时自动恢复",
+    "upgrade_rollback": "升级失败回退"
+  },
+  "loadMore": "加载更多"
+}

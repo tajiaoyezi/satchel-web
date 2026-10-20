@@ -2,6 +2,7 @@ import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { fakeXHR } from '@/test/ops'
 import { renderApp } from '@/test/render'
 import { adminAccount, fakeServer, type FakeCall, type FakeReply } from '@/test/server'
 
@@ -178,10 +179,40 @@ describe('系统设置页', () => {
     expect(screen.getByText('先保存 site key 与 secret key，才能测试配置。')).toBeTruthy()
   })
 
-  it('普通用户打开系统设置：显示没有权限，不读设置', async () => {
+  it('普通用户看不到系统设置：导航里没有系统设置与运维菜单，直接打开 /settings 与 /logs 都显示没有权限，也不读', async () => {
     const calls = server({}, { ...adminAccount, username: 'bob', role: 'user' })
-    renderApp('/settings')
+    const { router } = renderApp('/settings')
     expect(await screen.findByText('这一页只对管理员开放。')).toBeTruthy()
-    expect(calls.some((c) => c.url.startsWith('/api/v1/settings'))).toBe(false)
+    expect(screen.queryByRole('link', { name: '系统设置' })).toBeNull()
+    expect(screen.queryByRole('button', { name: '运维' })).toBeNull()
+    await router.navigate({ to: '/logs' })
+    expect(await screen.findByRole('heading', { name: '日志' })).toBeTruthy()
+    expect(screen.getByText('这一页只对管理员开放。')).toBeTruthy()
+    expect(calls.some((c) => c.url.startsWith('/api/v1/settings') || c.url.startsWith('/api/v1/logs'))).toBe(false)
+  })
+
+  it('上传 logo：以文件本身作请求体，地址填进输入框并预览，保存时带上这个地址', async () => {
+    const user = userEvent.setup()
+    const sent = fakeXHR({ status: 200, body: { url: '/public/uploads/0123456789abcdef0123456789abcdef.png', size: 3, content_type: 'image/png' } })
+    const calls = server({ 'POST /api/v1/settings/set': { body: settings(5, { spec: { branding_logo_url: '/public/uploads/0123456789abcdef0123456789abcdef.png' } }) } })
+    renderApp('/settings')
+    const file = new File(['PNG'], 'logo.png', { type: 'image/png' })
+    await user.upload(await screen.findByTestId('branding_logo_url-file'), file)
+    await waitFor(() => expect(screen.getByLabelText('logo 地址')).toHaveValue('/public/uploads/0123456789abcdef0123456789abcdef.png'))
+    expect(sent).toEqual({ url: '/api/v1/settings/image/upload', type: 'application/octet-stream', body: file })
+    expect(screen.getAllByRole('img', { name: '预览' })[0]).toHaveAttribute('src', '/public/uploads/0123456789abcdef0123456789abcdef.png')
+    await user.click(screen.getByRole('button', { name: '保存品牌与外观' }))
+    await waitFor(() => expect(calls.some((c) => c.url === '/api/v1/settings/set')).toBe(true))
+    expect((calls.find((c) => c.url === '/api/v1/settings/set')?.body as { set: Record<string, string> }).set.branding_logo_url).toBe('/public/uploads/0123456789abcdef0123456789abcdef.png')
+  })
+
+  it('上传了主控不收的图片：显示主控的 reason，壁纸输入框不变', async () => {
+    const user = userEvent.setup({ applyAccept: false })
+    fakeXHR({ status: 400, body: { code: 'bad_request', reason: '只收 PNG、JPEG、GIF、WebP 与 ICO 图片（按文件内容判断，不收 SVG），这个文件是 text/xml; charset=utf-8', state: {}, next: '' } })
+    server({ 'GET /api/v1/settings/show': { body: settings(4, { spec: { login_wallpaper: 'https://img.example/a.jpg' } }) } })
+    renderApp('/settings')
+    await user.upload(await screen.findByTestId('login_wallpaper-file'), new File(['<svg/>'], 'a.svg', { type: 'image/svg+xml' }))
+    expect(await screen.findByText(/只收 PNG、JPEG、GIF、WebP 与 ICO 图片/)).toBeTruthy()
+    expect(screen.getByLabelText('登录壁纸地址')).toHaveValue('https://img.example/a.jpg')
   })
 })

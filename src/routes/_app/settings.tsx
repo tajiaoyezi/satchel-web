@@ -1,17 +1,18 @@
-import { queryOptions, useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
-import { useState, type FormEvent, type ReactNode } from 'react'
+import { useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
-import { ApiError, run } from '@/api/client'
-import { accountQuery } from '@/api/queries'
-import type { Page } from '@/api/types'
+import { ApiError, run, upload } from '@/api/client'
+import { settingsShowQuery } from '@/api/queries'
+import type { Page, SettingsObject } from '@/api/types'
 import { updateBoot } from '@/boot'
+import { AdminPage } from '@/components/AdminPage'
 import { useDialogs } from '@/components/dialogs/DialogsProvider'
 import { ErrorNotice } from '@/components/ErrorNotice'
 import { Turnstile } from '@/components/Turnstile'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -24,13 +25,6 @@ import { Textarea } from '@/components/ui/textarea'
 import { IMPLEMENTED, THEMES } from '@/theme/themes'
 
 export const Route = createFileRoute('/_app/settings')({ component: SettingsPage })
-
-// SettingsObject 是 settings show 与各条写命令的输出：整单一个 resourceVersion，spec 是日常运维档，status 是其余各档。
-export interface SettingsObject {
-  metadata: { resourceVersion: number }
-  spec: Record<string, unknown>
-  status: Record<string, unknown>
-}
 
 interface Snapshot {
   id: number
@@ -46,14 +40,15 @@ interface TurnstileResult {
   hostname: string
 }
 
-const settingsShowQuery = queryOptions({ queryKey: ['settings show'], queryFn: () => run<SettingsObject>('settings show') })
-
 const BRANDING = [
   ['branding_site_title', 'branding.siteTitle'],
   ['branding_brand_title', 'branding.brandTitle'],
   ['branding_logo_url', 'branding.logoUrl'],
   ['login_wallpaper', 'branding.loginWallpaper'],
 ] as const
+// IMAGE_FIELDS 旁边有「上传」：图片交给 settings image upload，地址填回输入框（master-settings「上传图片」）。
+const IMAGE_FIELDS = new Set<string>(['branding_logo_url', 'login_wallpaper'])
+const IMAGE_ACCEPT = 'image/png,image/jpeg,image/gif,image/webp,image/x-icon'
 const MASTER_URL = ['master_url', 'subscription_url'] as const
 const GATE_SWITCHES = ['master_local_only', 'silent_mode', 'probe_disguise_block_login', 'brute_force_enabled', 'skip_local_ip'] as const
 const GATE_NUMBERS = [
@@ -78,19 +73,10 @@ const camel = (field: string) => field.replace(/_([a-z])/g, (_, c: string) => c.
 // 系统设置页（web-console「系统设置页」）：只对管理员可用；打开时 settings show，每次写都带读到的 resourceVersion。
 function SettingsPage() {
   const { t } = useTranslation('settings')
-  const isAdmin = useQuery(accountQuery).data?.role === 'admin'
   return (
-    <div className="grid gap-4">
-      <h1 className="text-2xl font-semibold">{t('title')}</h1>
-      {isAdmin ? (
-        <SettingsBody />
-      ) : (
-        <Alert>
-          <AlertTitle>{t('noPermission.title', { ns: 'common' })}</AlertTitle>
-          <AlertDescription>{t('noPermission.description', { ns: 'common' })}</AlertDescription>
-        </Alert>
-      )}
-    </div>
+    <AdminPage title={t('title')}>
+      <SettingsBody />
+    </AdminPage>
   )
 }
 
@@ -198,9 +184,14 @@ function BrandingCard({ values }: { values: Values }) {
       <form className="grid gap-4" onSubmit={submit}>
         {BRANDING.map(([f, label]) => (
           <Field key={f} id={f} label={t(label)}>
-            <Input id={f} value={form[f]} onChange={(e) => setForm({ ...form, [f]: e.target.value })} />
+            {IMAGE_FIELDS.has(f) ? (
+              <ImageInput id={f} value={form[f]} onChange={(v) => setForm((cur) => ({ ...cur, [f]: v }))} />
+            ) : (
+              <Input id={f} value={form[f]} onChange={(e) => setForm({ ...form, [f]: e.target.value })} />
+            )}
           </Field>
         ))}
+        <p className="text-muted-foreground text-xs">{t('branding.uploadHint')}</p>
         <div className="grid gap-1.5">
           <Label>{t('branding.defaultTheme')}</Label>
           <Select value={form.default_theme} onValueChange={(v) => setForm({ ...form, default_theme: v })}>
@@ -222,6 +213,46 @@ function BrandingCard({ values }: { values: Values }) {
         </Button>
       </form>
     </Section>
+  )
+}
+
+// previewable 是能当图片预览的地址：与主控对这两个字段的规则一样，以 /、http://、https:// 或 data:image/ 开头。
+const previewable = (v: string) => /^(\/|https?:\/\/|data:image\/)/.test(v)
+
+// ImageInput 是图片地址的输入框加「上传」：以文件本身作请求体提交 settings image upload，成功后把返回的地址填进来（照常保存才生效）；
+// 主控拒绝时显示它的 reason，输入框不变。accept 只是方便挑文件，类型由主控按内容判定。
+function ImageInput({ id, value, onChange }: { id: string; value: string; onChange: (v: string) => void }) {
+  const { t } = useTranslation('settings')
+  const file = useRef<HTMLInputElement>(null)
+  const send = useMutation({
+    mutationFn: (f: File) => upload<{ url: string }>('settings image upload', f, { contentType: 'application/octet-stream' }),
+    onSuccess: (img) => onChange(img.url),
+    onSettled: () => {
+      if (file.current) file.current.value = ''
+    },
+  })
+  return (
+    <div className="grid gap-2">
+      <div className="flex gap-2">
+        <Input id={id} value={value} onChange={(e) => onChange(e.target.value)} />
+        <Button type="button" variant="outline" disabled={send.isPending} onClick={() => file.current?.click()}>
+          {t('branding.upload')}
+        </Button>
+        <input
+          ref={file}
+          type="file"
+          accept={IMAGE_ACCEPT}
+          className="hidden"
+          data-testid={`${id}-file`}
+          onChange={(e) => {
+            const f = e.target.files?.[0]
+            if (f) send.mutate(f)
+          }}
+        />
+      </div>
+      <ErrorNotice error={send.error} />
+      {previewable(value) && <img src={value} alt={t('branding.preview')} className="h-12 max-w-48 justify-self-start rounded border object-contain" />}
+    </div>
   )
 }
 

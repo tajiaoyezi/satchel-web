@@ -44,6 +44,6 @@ export function captchaConfig() {
 }
 
 // healthz 是无身份的健康检查：恢复备份之后等主控重启时轮询它。
-export function healthz() {
-  return request<{ status: string }>('GET', '/api/v1/healthz')
+export function healthz(signal?: AbortSignal) {
+  return request<{ status: string }>('GET', '/api/v1/healthz', undefined, signal)
 }

@@ -3,7 +3,7 @@ import type { SessionEntry } from './api/session-entries'
 
 // 页面清单（master-web「页面清单与命令表一致」）：每一页的「可见操作 → CLI 命令」对照表。页面上能点的每个操作都要在这里，
 // 写对应的命令，或者会话入口；文案写资源文件里的 key（命名空间:路径），构建时换成中文写进 dist/satchel-web.json。
-// 本站（m1-11）交付这六页，m1-12 加运维页。
+// m1-11 交付前六页，m1-12 加八个运维页。人类专属命令的错误提示取第一个提供它的页面（master-web），所以这几条只写在它们本来的那一页。
 export interface ActionDef {
   labelKey: string
   command?: CommandName
@@ -79,10 +79,90 @@ export const pages: PageDef[] = [
       { labelKey: 'settings:actions.saveBranding', command: 'settings set' },
       { labelKey: 'settings:actions.saveMasterUrl', command: 'settings master-url set' },
       { labelKey: 'settings:actions.saveGates', command: 'settings gates set' },
+      { labelKey: 'settings:actions.uploadImage', command: 'settings image upload' },
       { labelKey: 'settings:actions.testTurnstile', command: 'settings turnstile test' },
       { labelKey: 'settings:actions.updateCdn', command: 'settings update-cdn set' },
       { labelKey: 'settings:actions.snapshots', command: 'settings snapshots list' },
       { labelKey: 'settings:actions.rollback', command: 'settings rollback' },
+    ],
+  },
+  {
+    id: 'logs',
+    path: '/logs',
+    titleKey: 'logs:title',
+    actions: [
+      { labelKey: 'logs:actions.files', command: 'logs files list' },
+      { labelKey: 'logs:actions.lines', command: 'logs list' },
+    ],
+  },
+  {
+    id: 'schedule',
+    path: '/schedule',
+    titleKey: 'schedule:title',
+    actions: [
+      { labelKey: 'schedule:actions.tasks', command: 'schedule list' },
+      { labelKey: 'schedule:actions.runs', command: 'schedule runs list' },
+    ],
+  },
+  {
+    id: 'jobs',
+    path: '/jobs',
+    titleKey: 'jobs:title',
+    actions: [
+      { labelKey: 'jobs:actions.list', command: 'job list' },
+      { labelKey: 'jobs:actions.detail', command: 'job get' },
+    ],
+  },
+  {
+    id: 'audit',
+    path: '/audit',
+    titleKey: 'audit:title',
+    actions: [{ labelKey: 'audit:actions.list', command: 'audit list' }],
+  },
+  {
+    id: 'security',
+    path: '/security',
+    titleKey: 'security:title',
+    actions: [
+      { labelKey: 'security:actions.bans', command: 'security bans list' },
+      { labelKey: 'security:actions.ban', command: 'security ban' },
+      { labelKey: 'security:actions.unban', command: 'security unban' },
+      { labelKey: 'security:actions.events', command: 'security events list' },
+    ],
+  },
+  {
+    id: 'backups',
+    path: '/backups',
+    titleKey: 'backups:title',
+    actions: [
+      { labelKey: 'backups:actions.list', command: 'backup list' },
+      { labelKey: 'backups:actions.create', command: 'backup create' },
+      { labelKey: 'backups:actions.progress', command: 'job get' },
+      { labelKey: 'backups:actions.upload', command: 'backup upload' },
+      { labelKey: 'backups:actions.download', command: 'backup download' },
+      { labelKey: 'backups:actions.restore', command: 'backup restore' },
+      { labelKey: 'backups:actions.lastRestore', command: 'settings show' },
+    ],
+  },
+  {
+    id: 'database',
+    path: '/database',
+    titleKey: 'database:title',
+    actions: [
+      { labelKey: 'database:actions.show', command: 'database show' },
+      { labelKey: 'database:actions.test', command: 'database test' },
+      { labelKey: 'database:actions.migrate', command: 'database migrate' },
+      { labelKey: 'database:actions.progress', command: 'job get' },
+    ],
+  },
+  {
+    id: 'update',
+    path: '/update',
+    titleKey: 'update:title',
+    actions: [
+      { labelKey: 'update:actions.check', command: 'update check' },
+      { labelKey: 'update:actions.apply', command: 'update apply' },
+      { labelKey: 'update:actions.progress', command: 'job get' },
     ],
   },
 ]

@@ -1,0 +1,35 @@
+{
+  "title": "定时任务",
+  "actions": {
+    "tasks": "列出内置任务",
+    "runs": "查看运行记录"
+  },
+  "tasks": {
+    "title": "内置任务",
+    "description": "点任务名只看它的运行记录，再点一次取消。",
+    "name": "任务",
+    "summary": "说明",
+    "interval": "间隔",
+    "last": "最近一次运行",
+    "never": "还没有运行记录"
+  },
+  "runs": {
+    "title": "运行记录",
+    "task": "任务",
+    "startedAt": "开始时间",
+    "duration": "耗时",
+    "status": "状态",
+    "detail": "详情",
+    "empty": "没有运行记录",
+    "allStatuses": "全部状态",
+    "taskFilter": "只看任务 {{task}}",
+    "clearTask": "取消任务过滤",
+    "durationMs": "{{ms}} 毫秒"
+  },
+  "statuses": {
+    "running": "运行中",
+    "ok": "成功",
+    "error": "出错"
+  },
+  "loadMore": "加载更多"
+}

@@ -1,0 +1,37 @@
+{
+  "title": "升级",
+  "actions": {
+    "check": "检查更新",
+    "apply": "升级主控",
+    "progress": "跟踪升级进度"
+  },
+  "channel": "渠道",
+  "channels": {
+    "stable": "stable（正式版）",
+    "prerelease": "prerelease（预发布）"
+  },
+  "recheck": "重新检查",
+  "current": "当前版本：{{version}}",
+  "latest": "最新版本：{{version}}",
+  "hasUpdate": "有新版本",
+  "upToDate": "已经是最新版本",
+  "notes": "发布说明",
+  "noNotes": "没有发布说明",
+  "releasePage": "发布页",
+  "source": "版本信息来自：{{source}}",
+  "cdn": {
+    "enabled": "更新 CDN：开",
+    "disabled": "更新 CDN：关",
+    "used": "这次用了更新 CDN",
+    "notUsed": "这次没有用更新 CDN",
+    "reason": "原因：{{reason}}"
+  },
+  "cannotApply": "这台主控不能自升级：",
+  "apply": "升级到 {{version}}",
+  "applyConfirm": {
+    "title": "把主控升级到 {{version}}？",
+    "description": "升级前会先生成一份备份；替换二进制之后主控原地重启，中间几秒连不上。新版本的健康检查不过时自动回退到当前版本。"
+  },
+  "done": "已从 {{from}} 升级到 {{to}}。新版本带着新版网页，刷新页面才会加载。",
+  "reload": "刷新页面"
+}

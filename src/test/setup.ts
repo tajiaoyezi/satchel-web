@@ -16,3 +16,8 @@ class NoopResizeObserver {
   disconnect() {}
 }
 globalThis.ResizeObserver ??= NoopResizeObserver as unknown as typeof ResizeObserver
+
+// jsdom 没有指针捕获与 scrollIntoView；Radix 的下拉选择框（Select）打开与选中时要用。
+Element.prototype.hasPointerCapture ??= () => false
+Element.prototype.releasePointerCapture ??= () => {}
+Element.prototype.scrollIntoView ??= () => {}

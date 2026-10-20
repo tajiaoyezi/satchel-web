@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { ApiError, request, routeFor, run, upload } from './client'
+import { ApiError, download, fileName, isUnreachable, request, routeFor, run, upload } from './client'
 
 interface Call {
   url: string
@@ -96,5 +96,102 @@ describe('upload', () => {
     expect(res).toEqual({ ok: true })
     expect(sent).toEqual({ url: '/api/v1/setup/restore', body: file, type: 'application/zip' })
     expect(progress).toEqual([0.5])
+  })
+
+  it('可以指定 Content-Type；失败时是四字段错误', async () => {
+    const sent: { type?: string } = {}
+    class FakeXHR {
+      status = 400
+      responseText = '{"code":"bad_request","reason":"只收 PNG、JPEG、GIF、WebP 与 ICO 图片","state":{},"next":""}'
+      upload = {}
+      onload?: () => void
+      withCredentials = false
+      open() {}
+      setRequestHeader(_k: string, v: string) {
+        sent.type = v
+      }
+      send() {
+        this.onload?.()
+      }
+    }
+    vi.stubGlobal('XMLHttpRequest', FakeXHR)
+    const err = (await upload('settings image upload', new Blob(['<svg/>']), { contentType: 'application/octet-stream' }).catch((e: unknown) => e)) as ApiError
+    expect(sent.type).toBe('application/octet-stream')
+    expect(err.code).toBe('bad_request')
+    expect(err.fromMaster).toBe(true)
+  })
+})
+
+// 下载类命令：POST JSON 体（位置参数进路径、当场验证进体），收成 Blob 让浏览器保存（design 第 2 条）。
+describe('download', () => {
+  it('请求形状、文件名取 Content-Disposition，对象 URL 用完释放', async () => {
+    vi.useFakeTimers()
+    const calls: Call[] = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init: RequestInit) => {
+        calls.push({ url, method: init.method ?? 'GET', body: JSON.parse(String(init.body)) })
+        return new Response('PKzip', { status: 200, headers: { 'Content-Disposition': 'attachment; filename=satchel-backup-1.zip' } })
+      }),
+    )
+    const created: Blob[] = []
+    const revoked: string[] = []
+    vi.stubGlobal('URL', { ...URL, createObjectURL: (b: Blob) => (created.push(b), 'blob:1'), revokeObjectURL: (u: string) => revoked.push(u) })
+    const clicked: string[] = []
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+      clicked.push(this.download)
+    })
+    try {
+      const res = await download('backup download', { args: ['b 1.zip'], verify: { password: 'pw' }, fallbackName: 'b 1.zip' })
+      expect(calls[0]).toEqual({ url: '/api/v1/backup/download/b%201.zip', method: 'POST', body: { 'verify-password': 'pw' } })
+      expect(res).toEqual({ name: 'satchel-backup-1.zip', size: 5 })
+      expect(clicked).toEqual(['satchel-backup-1.zip'])
+      expect(created).toHaveLength(1)
+      expect(revoked).toEqual([])
+      vi.runAllTimers()
+      expect(revoked).toEqual(['blob:1'])
+    } finally {
+      click.mockRestore()
+      vi.useRealTimers()
+    }
+  })
+
+  it('失败时抛出四字段错误，不保存', async () => {
+    mockFetch(403, { code: 'human_required', reason: '要当场验证', state: {}, next: '' })
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click')
+    const err = (await download('backup download', { args: ['x.zip'], fallbackName: 'x.zip' }).catch((e: unknown) => e)) as ApiError
+    expect(err.code).toBe('human_required')
+    expect(click).not.toHaveBeenCalled()
+    click.mockRestore()
+  })
+
+  it('文件名：filename* 优先，带引号的也认，没有时为空', () => {
+    expect(fileName(`attachment; filename="a b.zip"`)).toBe('a b.zip')
+    expect(fileName(`attachment; filename=x.zip; filename*=utf-8''%E5%A4%87%E4%BB%BD.zip`)).toBe('备份.zip')
+    expect(fileName('attachment')).toBe('')
+    expect(fileName(null)).toBe('')
+  })
+})
+
+// web-console「长任务的跟踪」的「连不上」：网络错误与代理的网关类状态码算，主控的四字段错误不算。
+describe('isUnreachable', () => {
+  it('状态 0、非主控的 502 与 520 算连不上，主控的 503 不算', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new TypeError('Failed to fetch')
+      }),
+    )
+    const network = await run('job get', { args: ['job-1'] }).catch((e: unknown) => e)
+    expect((network as ApiError).status).toBe(0)
+    expect(isUnreachable(network)).toBe(true)
+    mockFetch(502, '<html>bad gateway</html>')
+    expect(isUnreachable(await run('job get', { args: ['job-1'] }).catch((e: unknown) => e))).toBe(true)
+    mockFetch(520, '')
+    expect(isUnreachable(await run('job get', { args: ['job-1'] }).catch((e: unknown) => e))).toBe(true)
+    mockFetch(503, { code: 'unavailable', reason: '正在迁移', state: {}, next: '' })
+    expect(isUnreachable(await run('job get', { args: ['job-1'] }).catch((e: unknown) => e))).toBe(false)
+    mockFetch(500, '<html>oops</html>')
+    expect(isUnreachable(await run('job get', { args: ['job-1'] }).catch((e: unknown) => e))).toBe(false)
   })
 })

@@ -1,0 +1,29 @@
+{
+  "title": "长任务",
+  "actions": {
+    "list": "列出长任务",
+    "detail": "查看一个长任务"
+  },
+  "description": "受理后在主控里接着跑的命令（生成备份、数据库迁移、升级）。有运行中的长任务时每 2 秒自动刷新。",
+  "allStatuses": "全部状态",
+  "statusFilter": "状态",
+  "columns": {
+    "id": "job id",
+    "kind": "种类",
+    "status": "状态",
+    "createdAt": "受理时间",
+    "startedAt": "开始时间",
+    "finishedAt": "结束时间"
+  },
+  "empty": "没有长任务",
+  "loadMore": "加载更多",
+  "detail": {
+    "title": "长任务 {{id}}",
+    "exitCode": "退出码",
+    "args": "参数",
+    "output": "结果",
+    "truncated": "结果超过 64 KiB，已截断，后面的部分没有保存。",
+    "progress": "进度",
+    "noOutput": "还没有结果"
+  }
+}

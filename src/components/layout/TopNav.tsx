@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link, useNavigate } from '@tanstack/react-router'
-import { LogOut, Moon, Palette, Sun, User } from 'lucide-react'
+import { Link, useLocation, useNavigate } from '@tanstack/react-router'
+import { ChevronDown, LogOut, Moon, Palette, Sun, User } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { accountQuery } from '@/api/queries'
@@ -20,7 +20,19 @@ import {
 import { useTheme } from '@/theme/ThemeProvider'
 import { IMPLEMENTED, THEMES, isThemeName, type Mode } from '@/theme/themes'
 
-// 顶部导航与用户菜单（web-console「布局与导航」）：系统设置只对管理员显示，权限仍由主控判定。
+// OPS_PAGES 是「运维」菜单里的八页，按这个顺序列；名字取各页资源文件里的标题。
+const OPS_PAGES = [
+  { to: '/logs', ns: 'logs' },
+  { to: '/schedule', ns: 'schedule' },
+  { to: '/jobs', ns: 'jobs' },
+  { to: '/audit', ns: 'audit' },
+  { to: '/security', ns: 'security' },
+  { to: '/backups', ns: 'backups' },
+  { to: '/database', ns: 'database' },
+  { to: '/update', ns: 'update' },
+] as const
+
+// 顶部导航与用户菜单（web-console「布局与导航」）：系统设置与运维菜单只对管理员显示，权限仍由主控判定。
 export function TopNav() {
   const { t } = useTranslation()
   const account = useQuery(accountQuery).data
@@ -45,11 +57,35 @@ export function TopNav() {
             </Link>
           </Button>
         ))}
+        {isAdmin && <OpsMenu />}
         <div className="ml-auto">
           <UserMenu username={account?.username ?? ''} />
         </div>
       </nav>
     </header>
+  )
+}
+
+function OpsMenu() {
+  const { t } = useTranslation()
+  const pathname = useLocation({ select: (l) => l.pathname })
+  const active = OPS_PAGES.some((p) => pathname === p.to)
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="sm" className={active ? 'bg-accent' : undefined}>
+          {t('nav.ops')}
+          <ChevronDown />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start">
+        {OPS_PAGES.map((p) => (
+          <DropdownMenuItem key={p.to} asChild>
+            <Link to={p.to}>{t('title', { ns: p.ns })}</Link>
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }
 

@@ -8,7 +8,8 @@
     "testTurnstile": "测试配置",
     "updateCdn": "开关更新 CDN",
     "snapshots": "查看写前快照",
-    "rollback": "回滚到快照"
+    "rollback": "回滚到快照",
+    "uploadImage": "上传 logo 或登录壁纸图片"
   },
   "version": "当前版本 {{version}}",
   "conflict": "别人刚改过系统设置。请重新读取，看过最新的值后再改。",
@@ -21,7 +22,10 @@
     "logoUrl": "logo 地址",
     "loginWallpaper": "登录壁纸地址",
     "defaultTheme": "默认主题",
-    "notYet": "{{name}}（随前端末段交付，现在按扁平显示）"
+    "notYet": "{{name}}（随前端末段交付，现在按扁平显示）",
+    "upload": "上传",
+    "uploadHint": "可以填图片地址，也可以上传一张 PNG、JPEG、GIF、WebP 或 ICO（最大 5 MiB），上传后地址会填进来，保存才生效。",
+    "preview": "预览"
   },
   "masterUrl": {
     "title": "主控地址",

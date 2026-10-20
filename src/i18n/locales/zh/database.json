@@ -1,0 +1,57 @@
+{
+  "title": "数据库",
+  "actions": {
+    "show": "查看当前数据库",
+    "test": "试连 PostgreSQL",
+    "migrate": "迁移到 PostgreSQL",
+    "progress": "跟踪迁移进度"
+  },
+  "current": {
+    "title": "当前数据库",
+    "driver": "驱动",
+    "path": "库文件",
+    "size": "大小",
+    "host": "主机",
+    "port": "端口",
+    "name": "库名",
+    "user": "用户",
+    "sslmode": "sslmode",
+    "password": "密码",
+    "passwordSet": "已配置",
+    "passwordUnset": "没有配置",
+    "envOverride": "连接参数被环境变量 SATCHEL_DATABASE_* 覆盖了，页面上显示的是生效的值。"
+  },
+  "target": {
+    "title": "迁移到 PostgreSQL",
+    "description": "先试连目标库：要是空库，这台主控上还要有能用的 pg_dump 与 psql（迁过去之后备份与恢复要用）。密码只随这一次请求发出，网页不保存。",
+    "host": "主机",
+    "port": "端口",
+    "name": "库名",
+    "user": "用户",
+    "password": "密码",
+    "sslmode": "sslmode"
+  },
+  "test": "试连",
+  "migrate": "迁移",
+  "result": {
+    "version": "服务器版本：{{version}}",
+    "empty": "目标库是空的，可以迁移。",
+    "notEmpty": "目标库不是空的，已有这些表：",
+    "toolsOk": "这台主控上的 pg_dump 与 psql 能用。",
+    "toolsMissing": "这台主控上的备份工具不能用：{{error}}",
+    "toolsNext": "{{next}}"
+  },
+  "unavailable": {
+    "postgres": "已经在用 PostgreSQL，只支持从 SQLite 迁移到 PostgreSQL。",
+    "env": "连接参数被环境变量覆盖了，不能在线迁移。去掉 SATCHEL_DATABASE_* 之后再试。"
+  },
+  "migrateConfirm": {
+    "title": "从 SQLite 迁移到 {{host}} 上的 {{name}}？",
+    "description": "拷贝期间除了查看进度，别的操作都会被拒；成功后主控重启并改用 PostgreSQL；SQLite 的库文件留在数据目录里。",
+    "confirm": "迁移"
+  },
+  "done": "迁移完成：拷了 {{tables}} 张表、{{rows}} 行。",
+  "restarting": "主控正在重启并改用 PostgreSQL…",
+  "back": "主控已重新起来。",
+  "stuck": "等了 5 分钟还是连不上主控。请到主控本机看它有没有起来（如 systemctl status satchel 或 docker compose ps）；主控如果是直接在前台跑的，要手动再启动。查过后刷新本页。"
+}

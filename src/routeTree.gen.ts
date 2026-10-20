@@ -14,8 +14,16 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as SetupRouteImport } from './routes/setup'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppAccountRouteImport } from './routes/_app/account'
+import { Route as AppAuditRouteImport } from './routes/_app/audit'
+import { Route as AppBackupsRouteImport } from './routes/_app/backups'
+import { Route as AppDatabaseRouteImport } from './routes/_app/database'
+import { Route as AppJobsRouteImport } from './routes/_app/jobs'
+import { Route as AppLogsRouteImport } from './routes/_app/logs'
+import { Route as AppScheduleRouteImport } from './routes/_app/schedule'
+import { Route as AppSecurityRouteImport } from './routes/_app/security'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppTokensRouteImport } from './routes/_app/tokens'
+import { Route as AppUpdateRouteImport } from './routes/_app/update'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -41,6 +49,41 @@ const AppAccountRoute = AppAccountRouteImport.update({
   path: '/account',
   getParentRoute: () => AppRoute,
 } as any)
+const AppAuditRoute = AppAuditRouteImport.update({
+  id: '/audit',
+  path: '/audit',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppBackupsRoute = AppBackupsRouteImport.update({
+  id: '/backups',
+  path: '/backups',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDatabaseRoute = AppDatabaseRouteImport.update({
+  id: '/database',
+  path: '/database',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppJobsRoute = AppJobsRouteImport.update({
+  id: '/jobs',
+  path: '/jobs',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppLogsRoute = AppLogsRouteImport.update({
+  id: '/logs',
+  path: '/logs',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppScheduleRoute = AppScheduleRouteImport.update({
+  id: '/schedule',
+  path: '/schedule',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSecurityRoute = AppSecurityRouteImport.update({
+  id: '/security',
+  path: '/security',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSettingsRoute = AppSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -51,21 +94,42 @@ const AppTokensRoute = AppTokensRouteImport.update({
   path: '/tokens',
   getParentRoute: () => AppRoute,
 } as any)
+const AppUpdateRoute = AppUpdateRouteImport.update({
+  id: '/update',
+  path: '/update',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
   '/account': typeof AppAccountRoute
+  '/audit': typeof AppAuditRoute
+  '/backups': typeof AppBackupsRoute
+  '/database': typeof AppDatabaseRoute
+  '/jobs': typeof AppJobsRoute
+  '/logs': typeof AppLogsRoute
+  '/schedule': typeof AppScheduleRoute
+  '/security': typeof AppSecurityRoute
   '/settings': typeof AppSettingsRoute
   '/tokens': typeof AppTokensRoute
+  '/update': typeof AppUpdateRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
   '/account': typeof AppAccountRoute
+  '/audit': typeof AppAuditRoute
+  '/backups': typeof AppBackupsRoute
+  '/database': typeof AppDatabaseRoute
+  '/jobs': typeof AppJobsRoute
+  '/logs': typeof AppLogsRoute
+  '/schedule': typeof AppScheduleRoute
+  '/security': typeof AppSecurityRoute
   '/settings': typeof AppSettingsRoute
   '/tokens': typeof AppTokensRoute
+  '/update': typeof AppUpdateRoute
   '/': typeof AppIndexRoute
 }
 export interface FileRoutesById {
@@ -74,23 +138,67 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
   '/_app/account': typeof AppAccountRoute
+  '/_app/audit': typeof AppAuditRoute
+  '/_app/backups': typeof AppBackupsRoute
+  '/_app/database': typeof AppDatabaseRoute
+  '/_app/jobs': typeof AppJobsRoute
+  '/_app/logs': typeof AppLogsRoute
+  '/_app/schedule': typeof AppScheduleRoute
+  '/_app/security': typeof AppSecurityRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/tokens': typeof AppTokensRoute
+  '/_app/update': typeof AppUpdateRoute
   '/_app/': typeof AppIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/setup' | '/account' | '/settings' | '/tokens'
+  fullPaths:
+    | '/'
+    | '/login'
+    | '/setup'
+    | '/account'
+    | '/audit'
+    | '/backups'
+    | '/database'
+    | '/jobs'
+    | '/logs'
+    | '/schedule'
+    | '/security'
+    | '/settings'
+    | '/tokens'
+    | '/update'
   fileRoutesByTo: FileRoutesByTo
-  to: '/login' | '/setup' | '/account' | '/settings' | '/tokens' | '/'
+  to:
+    | '/login'
+    | '/setup'
+    | '/account'
+    | '/audit'
+    | '/backups'
+    | '/database'
+    | '/jobs'
+    | '/logs'
+    | '/schedule'
+    | '/security'
+    | '/settings'
+    | '/tokens'
+    | '/update'
+    | '/'
   id:
     | '__root__'
     | '/_app'
     | '/login'
     | '/setup'
     | '/_app/account'
+    | '/_app/audit'
+    | '/_app/backups'
+    | '/_app/database'
+    | '/_app/jobs'
+    | '/_app/logs'
+    | '/_app/schedule'
+    | '/_app/security'
     | '/_app/settings'
     | '/_app/tokens'
+    | '/_app/update'
     | '/_app/'
   fileRoutesById: FileRoutesById
 }
@@ -137,6 +245,55 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAccountRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/audit': {
+      id: '/_app/audit'
+      path: '/audit'
+      fullPath: '/audit'
+      preLoaderRoute: typeof AppAuditRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/backups': {
+      id: '/_app/backups'
+      path: '/backups'
+      fullPath: '/backups'
+      preLoaderRoute: typeof AppBackupsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/database': {
+      id: '/_app/database'
+      path: '/database'
+      fullPath: '/database'
+      preLoaderRoute: typeof AppDatabaseRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/jobs': {
+      id: '/_app/jobs'
+      path: '/jobs'
+      fullPath: '/jobs'
+      preLoaderRoute: typeof AppJobsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/logs': {
+      id: '/_app/logs'
+      path: '/logs'
+      fullPath: '/logs'
+      preLoaderRoute: typeof AppLogsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/schedule': {
+      id: '/_app/schedule'
+      path: '/schedule'
+      fullPath: '/schedule'
+      preLoaderRoute: typeof AppScheduleRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/security': {
+      id: '/_app/security'
+      path: '/security'
+      fullPath: '/security'
+      preLoaderRoute: typeof AppSecurityRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/settings': {
       id: '/_app/settings'
       path: '/settings'
@@ -151,20 +308,43 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppTokensRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/update': {
+      id: '/_app/update'
+      path: '/update'
+      fullPath: '/update'
+      preLoaderRoute: typeof AppUpdateRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
 interface AppRouteChildren {
   AppAccountRoute: typeof AppAccountRoute
+  AppAuditRoute: typeof AppAuditRoute
+  AppBackupsRoute: typeof AppBackupsRoute
+  AppDatabaseRoute: typeof AppDatabaseRoute
+  AppJobsRoute: typeof AppJobsRoute
+  AppLogsRoute: typeof AppLogsRoute
+  AppScheduleRoute: typeof AppScheduleRoute
+  AppSecurityRoute: typeof AppSecurityRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppTokensRoute: typeof AppTokensRoute
+  AppUpdateRoute: typeof AppUpdateRoute
   AppIndexRoute: typeof AppIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppAccountRoute: AppAccountRoute,
+  AppAuditRoute: AppAuditRoute,
+  AppBackupsRoute: AppBackupsRoute,
+  AppDatabaseRoute: AppDatabaseRoute,
+  AppJobsRoute: AppJobsRoute,
+  AppLogsRoute: AppLogsRoute,
+  AppScheduleRoute: AppScheduleRoute,
+  AppSecurityRoute: AppSecurityRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppTokensRoute: AppTokensRoute,
+  AppUpdateRoute: AppUpdateRoute,
   AppIndexRoute: AppIndexRoute,
 }
 

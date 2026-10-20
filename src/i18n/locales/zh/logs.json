@@ -1,0 +1,27 @@
+{
+  "title": "日志",
+  "actions": {
+    "files": "列出日志文件",
+    "lines": "查看日志行"
+  },
+  "files": {
+    "title": "日志文件",
+    "active": "当前",
+    "empty": "还没有日志文件"
+  },
+  "level": "级别",
+  "levels": {
+    "all": "全部级别",
+    "debug": "debug 及以上",
+    "info": "info 及以上",
+    "warn": "warn 及以上",
+    "error": "只看 error"
+  },
+  "grep": "包含的文本（区分大小写）",
+  "search": "查询",
+  "refresh": "刷新",
+  "total": "符合条件的共 {{total}} 行，从新到旧。",
+  "empty": "没有符合条件的行",
+  "loadMore": "加载更多",
+  "limitNote": "只扫每个文件末尾的 50000 行。"
+}

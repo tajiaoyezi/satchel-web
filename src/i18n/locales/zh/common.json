@@ -20,7 +20,8 @@
   "nav": {
     "overview": "总览",
     "tokens": "API 令牌",
-    "settings": "系统设置"
+    "settings": "系统设置",
+    "ops": "运维"
   },
   "userMenu": {
     "account": "账号",
@@ -55,5 +56,34 @@
   },
   "turnstile": {
     "loadFailed": "人机验证（Cloudflare Turnstile）的脚本没有加载出来。检查这台电脑能否连上 challenges.cloudflare.com，然后重试。"
+  },
+  "job": {
+    "statuses": {
+      "queued": "排队中",
+      "running": "运行中",
+      "done": "完成",
+      "failed": "失败",
+      "unknown": "结果未知"
+    },
+    "phases": {
+      "waiting": "正在等进行中的请求结束",
+      "migrating_schema": "正在目标库里建表",
+      "copying": "正在拷贝",
+      "verifying": "正在校验",
+      "committing": "正在提交",
+      "downloading": "正在下载",
+      "backing_up": "正在生成升级前的备份",
+      "switching": "正在替换二进制",
+      "restarting": "正在重启"
+    },
+    "phase": "阶段：{{phase}}",
+    "tables": "表：{{done}}/{{total}}",
+    "table": "当前表：{{table}}",
+    "rows": "已拷 {{rows}} 行",
+    "source": "来源：{{source}}",
+    "bytes": "已下载 {{bytes}}",
+    "bytesOf": "已下载 {{bytes}} / {{total}}",
+    "failed": "长任务失败了",
+    "unreachable": "主控暂时连不上，已经停止查询。这个 job（{{id}}）仍在主控里，可以稍后在「长任务」页查看。"
   }
 }

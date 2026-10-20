@@ -1,0 +1,68 @@
+{
+  "title": "安全",
+  "actions": {
+    "bans": "列出生效中的封禁",
+    "ban": "封禁一个 IP",
+    "unban": "解封",
+    "events": "查看安全事件"
+  },
+  "scope": "封禁只拦带令牌的请求（远程 CLI、MCP 与带令牌的 REST 调用）；网页会话与登录不受影响，登录另有限流。",
+  "tabs": {
+    "bans": "封禁",
+    "events": "安全事件"
+  },
+  "bans": {
+    "ip": "IP",
+    "reason": "原因",
+    "bannedAt": "封禁时间",
+    "expiresAt": "到期时间",
+    "permanent": "永久",
+    "failCount": "失败次数",
+    "actor": "操作人",
+    "empty": "没有生效中的封禁"
+  },
+  "reasons": {
+    "brute_force": "令牌猜测过多",
+    "manual": "手动封禁"
+  },
+  "banForm": {
+    "title": "封禁一个 IP",
+    "description": "被封的 IP 带令牌的请求一律拒绝。不选永久时按「门与登录防护」里的封禁时长到期。",
+    "ip": "IP 地址，如 198.51.100.7 或 2001:db8::1",
+    "permanent": "永久封禁，直到解封",
+    "submit": "封禁"
+  },
+  "unbanConfirm": {
+    "title": "解封 {{ip}}？",
+    "description": "解封后这个 IP 带令牌的请求恢复正常。"
+  },
+  "events": {
+    "at": "时间",
+    "ip": "IP",
+    "kind": "种类",
+    "path": "路径或命令",
+    "username": "账号",
+    "detail": "详情",
+    "actor": "操作人",
+    "empty": "没有安全事件",
+    "allKinds": "全部种类",
+    "kindFilter": "种类",
+    "ipFilter": "只看这个 IP",
+    "search": "查询"
+  },
+  "kinds": {
+    "login_fail": "登录失败",
+    "login_locked": "登录被锁定",
+    "verify_fail": "当场验证失败",
+    "verify_locked": "当场验证被锁定",
+    "probe": "令牌校验失败",
+    "ban": "自动封禁",
+    "ban_manual": "手动封禁",
+    "unban": "解封"
+  },
+  "done": {
+    "banned": "已封禁 {{ip}}",
+    "unbanned": "已解封 {{ip}}"
+  },
+  "loadMore": "加载更多"
+}
