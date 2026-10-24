@@ -2,15 +2,17 @@ import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import { loadPage } from '@/lib/restart'
 import { opsServer, page } from '@/test/ops'
 import { renderApp } from '@/test/render'
-import { adminAccount, unauthenticated, type FakeCall } from '@/test/server'
+import { type FakeCall } from '@/test/server'
 
-// 等主控重启要几分钟：换成测试里放行的假函数。
+// 等主控重启要几分钟：换成测试里放行的假函数；整页加载在 jsdom 里做不了，换成记录调用的假函数。
 const restart = vi.hoisted(() => ({ release: () => {} }))
 vi.mock('@/lib/restart', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/restart')>()),
   waitForRestart: vi.fn(() => new Promise<void>((r) => (restart.release = r))),
+  loadPage: vi.fn(),
 }))
 
 afterEach(() => vi.unstubAllGlobals())
@@ -73,20 +75,14 @@ describe('备份与恢复页', () => {
     }
   })
 
-  it('恢复之后等主控重启：先确认、再当场验证，提示正在重启；主控起来之后会话没了，回到登录页', async () => {
+  it('恢复之后等主控重启：先确认、再当场验证，提示正在重启；主控起来之后整页重新加载本页', async () => {
     const user = userEvent.setup()
-    let restored = false
     const calls = opsServer({
-      'GET /api/v1/account/show': () => (restored ? unauthenticated : { body: adminAccount }),
       'GET /api/v1/backup': page([old]),
       'GET /api/v1/settings/show': settingsWith(null),
-      [`POST /api/v1/backup/restore/${old.name}`]: () => {
-        restored = true
-        return { body: { restarting: true, backup: old.name } }
-      },
-      'GET /api/v1/session/captcha': { body: { enabled: false, site_key: '' } },
+      [`POST /api/v1/backup/restore/${old.name}`]: { body: { restarting: true, backup: old.name } },
     })
-    const { router } = renderApp('/backups')
+    renderApp('/backups')
     await user.click(within(await screen.findByTestId(`backup-${old.name}`)).getByRole('button', { name: '恢复' }))
     expect(await screen.findByText(/恢复码会作废并重发，新码写在主控本机数据目录的 recovery-codes\/ 里/)).toBeTruthy()
     expect(calls.some((c: FakeCall) => c.url.includes('/backup/restore/'))).toBe(false)
@@ -94,8 +90,9 @@ describe('备份与恢复页', () => {
     await verifyAs(user)
     expect(await screen.findByText('恢复已受理，主控正在重启…')).toBeTruthy()
     expect(calls.find((c: FakeCall) => c.url === `/api/v1/backup/restore/${old.name}`)?.body).toEqual({ 'verify-password': 'secret12' })
+    expect(loadPage).not.toHaveBeenCalled()
     restart.release()
-    await waitFor(() => expect(router.state.location.pathname).toBe('/login'))
+    await waitFor(() => expect(loadPage).toHaveBeenCalledWith('/backups'))
   })
 
   it('上一次恢复失败：显示失败与原因', async () => {

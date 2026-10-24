@@ -17,7 +17,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { formatBytes, formatTime } from '@/lib/format'
-import { waitForRestart } from '@/lib/restart'
+import { loadPage, waitForRestart } from '@/lib/restart'
 
 export const Route = createFileRoute('/_app/backups')({ component: BackupsPage })
 
@@ -97,8 +97,9 @@ function BackupsBody() {
         return
       }
       setStage('back')
-      // 恢复成功时所有会话都没了：重新读的查询返回 unauthenticated，全局处理回登录页；恢复失败时会话还在，留在本页看上一次恢复。
-      await queryClient.invalidateQueries()
+      // 整页重新加载本页，品牌等换成恢复后的。恢复成功时所有会话都没了，守卫转到登录页、登录后回到本页；
+      // 恢复失败时会话还在，留在本页看上一次恢复。
+      loadPage('/backups')
     },
   })
   const onDownload = async (name: string) => {

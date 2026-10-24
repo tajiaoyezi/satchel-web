@@ -1,6 +1,12 @@
 // RestartTimeout：等满 upWaitMs 主控还是连不上。
 export class RestartTimeout extends Error {}
 
+// loadPage 整页加载 path（恢复备份、主控重启之后用，web-console「备份与恢复页」「初始化向导」）：重新请求 index.html，
+// 首屏注入的品牌、logo、登录壁纸、默认主题与站点标题换成恢复后的设置；只在页面内部跳转的话还是恢复前的。测试里换成假的。
+export function loadPage(path: string) {
+  window.location.assign(path)
+}
+
 // waitForRestart 等主控重启完（初始化向导恢复备份之后用，web-console「初始化向导」）：先等它停下（check 失败一次，最多等
 // downWaitMs，等不到也往下走：可能重启得太快没看到），再等 check 连续成功 needed 次，最多等 upWaitMs，等不到抛 RestartTimeout。
 // 每次 check 拿到一个 timeoutMs 后中止的 signal，过了这么久还没回应算失败：一次挂住不回的请求不会让上限失效。

@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { waitForRestart } from '@/lib/restart'
+import { loadPage, waitForRestart } from '@/lib/restart'
 
 export const Route = createFileRoute('/setup')({
   beforeLoad: async ({ context }) => {
@@ -112,8 +112,6 @@ function CreateAdmin() {
 
 function RestoreBackup() {
   const { t } = useTranslation('setup')
-  const navigate = useNavigate()
-  const queryClient = useQueryClient()
   const [file, setFile] = useState<File | null>(null)
   const [progress, setProgress] = useState(0)
   const [stage, setStage] = useState<'idle' | 'restarting' | 'back' | 'stuck'>('idle')
@@ -128,8 +126,7 @@ function RestoreBackup() {
         return
       }
       setStage('back')
-      queryClient.clear()
-      await navigate({ to: '/login' })
+      loadPage('/login') // 整页加载：登录页用备份里的品牌、logo 与主题
     },
   })
   return (
