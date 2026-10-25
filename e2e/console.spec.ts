@@ -206,10 +206,10 @@ test('日志页看到主控的启动日志', async () => {
   await expect(page.getByTestId('log-lines').getByText('主控已启动').first()).toBeVisible()
 })
 
-test('定时任务页列出 11 个内置任务', async () => {
+test('定时任务页列出 12 个内置任务', async () => {
   await page.goto('/schedule')
   const tasks = page.getByRole('table').first().getByRole('row')
-  await expect(tasks).toHaveCount(12) // 表头加 11 行
+  await expect(tasks).toHaveCount(13) // 表头加 12 行
   await expect(page.getByRole('button', { name: 'audit_cleanup' })).toBeVisible()
 })
 
