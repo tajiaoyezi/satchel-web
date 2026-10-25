@@ -149,7 +149,7 @@ test('改品牌后登录页的标题变了', async () => {
   const brand = page.getByLabel('品牌标题（登录页与导航上的名字）')
   await brand.fill('测试面板')
   await page.getByRole('button', { name: '保存品牌与外观' }).click()
-  await expect(page.getByText('已保存')).toBeVisible()
+  await expect(page.getByText('已保存', { exact: true })).toBeVisible()
   await logout()
   await expect(page.getByText('测试面板')).toBeVisible()
   await page.reload() // 主控注入的首屏也是新值
