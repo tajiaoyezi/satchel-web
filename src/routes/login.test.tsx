@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { renderApp } from '@/test/render'
+import { safeRedirect } from '@/router'
 import { adminAccount, fakeServer, type FakeReply } from '@/test/server'
 
 const initialized = { body: { initialized: true, paths: {} } }
@@ -86,5 +87,41 @@ describe('登录页', () => {
     await fillAndSubmit(user)
     await waitFor(() => expect(router.state.location.pathname).toBe('/'))
     expect(calls.find((c) => c.url === '/api/v1/session')?.body).toMatchObject({ turnstile_token: 'tok-1' })
+  })
+
+  it('redirect 只放行除 /login 以外的站内相对路径并保留查询参数', async () => {
+    expect(safeRedirect('https://evil.example/a')).toBe('/')
+    expect(safeRedirect('//evil.example/a')).toBe('/')
+    expect(safeRedirect('/\\evil.example')).toBe('/')
+    expect(safeRedirect('/login')).toBe('/')
+    expect(safeRedirect('/login?redirect=%2Ftokens')).toBe('/')
+    expect(safeRedirect('/tokens?tab=connections')).toBe('/tokens?tab=connections')
+
+    const user = userEvent.setup()
+    fakeServer({
+      'GET /api/v1/setup/status': initialized,
+      'GET /api/v1/session/captcha': noCaptcha,
+      'POST /api/v1/session': { body: { username: 'admin', role: 'admin' } },
+      'GET /api/v1/account/show': { body: adminAccount },
+      'GET /api/v1/token': { body: { items: [], nextCursor: '' } },
+    })
+    const { router } = renderApp('/login?redirect=' + encodeURIComponent('https://evil.example/steal'))
+    await fillAndSubmit(user)
+    await waitFor(() => expect(router.state.location.pathname).toBe('/'))
+  })
+
+  it('带查询参数的站内 redirect 登录后保留查询参数', async () => {
+    const user = userEvent.setup()
+    fakeServer({
+      'GET /api/v1/setup/status': initialized,
+      'GET /api/v1/session/captcha': noCaptcha,
+      'POST /api/v1/session': { body: { username: 'admin', role: 'admin' } },
+      'GET /api/v1/account/show': { body: adminAccount },
+      'GET /api/v1/token': { body: { items: [], nextCursor: '' } },
+    })
+    const { router } = renderApp('/login?redirect=' + encodeURIComponent('/tokens?tab=connections'))
+    await fillAndSubmit(user)
+    await waitFor(() => expect(router.state.location.pathname).toBe('/tokens'))
+    expect(router.state.location.searchStr).toBe('?tab=connections')
   })
 })

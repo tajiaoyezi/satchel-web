@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next'
 
 import { accountQuery } from '@/api/queries'
 import { logout } from '@/api/session'
-import { readBoot } from '@/boot'
+import { useBoot } from '@/boot'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -37,7 +37,7 @@ export function TopNav() {
   const { t } = useTranslation()
   const account = useQuery(accountQuery).data
   const isAdmin = account?.role === 'admin'
-  const boot = readBoot()
+  const boot = useBoot()
   const links = [
     { to: '/', label: t('nav.overview') },
     { to: '/tokens', label: t('nav.tokens') },

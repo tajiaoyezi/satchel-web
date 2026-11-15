@@ -19,6 +19,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { copyText } from '@/lib/clipboard'
 
 export const Route = createFileRoute('/_app/tokens')({ component: TokensPage })
 
@@ -304,8 +305,8 @@ function TokenForm({ token, onClose, onCreated }: { token?: Token; onClose: () =
 function CreatedToken({ plain, onClose }: { plain: string; onClose: () => void }) {
   const { t } = useTranslation('tokens')
   const copy = async () => {
-    await navigator.clipboard.writeText(plain)
-    toast.success(t('actions.copied', { ns: 'common' }))
+    if (await copyText(plain)) toast.success(t('actions.copied', { ns: 'common' }))
+    else toast.error(t('actions.copyFailed', { ns: 'common' }))
   }
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>

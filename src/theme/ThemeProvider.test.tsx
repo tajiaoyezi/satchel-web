@@ -1,6 +1,8 @@
 import { act, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it } from 'vitest'
 
+import { updateBoot } from '@/boot'
+
 import { ThemeProvider, useTheme } from './ThemeProvider'
 import { STORAGE_MODE } from './themes'
 
@@ -39,5 +41,21 @@ describe('ThemeProvider', () => {
     act(() => screen.getByText('pixel').click())
     expect(screen.getByTestId('state').textContent).toBe('pixel/light/false')
     expect(document.documentElement.getAttribute('data-theme')).toBe('flat')
+  })
+
+  it('未手动选主题时随 updateBoot 立即同步默认主题，已选过则保留本地选择', () => {
+    document.head.innerHTML = `<script id="satchel-boot" type="application/json">${JSON.stringify({ default_theme: 'flat' })}</script>`
+    render(
+      <ThemeProvider>
+        <Probe />
+      </ThemeProvider>,
+    )
+    expect(screen.getByTestId('state').textContent).toBe('flat/system/false')
+    act(() => updateBoot({ site_title: '', brand_title: '', logo_url: '', login_wallpaper: '', default_theme: 'pixel' }))
+    expect(screen.getByTestId('state').textContent).toBe('pixel/system/false')
+
+    act(() => screen.getByText('pixel').click()) // 存入 localStorage
+    act(() => updateBoot({ site_title: '', brand_title: '', logo_url: '', login_wallpaper: '', default_theme: 'anime' }))
+    expect(screen.getByTestId('state').textContent).toBe('pixel/system/false')
   })
 })

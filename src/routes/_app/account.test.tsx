@@ -57,4 +57,28 @@ describe('账号页', () => {
     await waitFor(() => expect(calls.some((c) => c.url === '/api/v1/account/set-password')).toBe(true))
     expect(calls.find((c) => c.url === '/api/v1/account/set-password')?.body).toEqual({ 'new-password': 'newpass12', 'verify-password': 'secret12' })
   })
+
+  it('开启两步验证时改密码必须填验证码或恢复码', async () => {
+    const user = userEvent.setup()
+    const calls = fakeServer({
+      'GET /api/v1/setup/status': { body: { initialized: true, paths: {} } },
+      'GET /api/v1/account/show': { body: { ...adminAccount, totp_enabled: true } },
+      'POST /api/v1/account/set-password': { body: { username: 'admin', sessions_revoked: 1 } },
+    })
+    renderApp('/account')
+    await user.type(await screen.findByLabelText('当前密码'), 'secret12')
+    await user.type(screen.getByLabelText('新密码（至少 8 个字符）'), 'newpass12')
+    await user.type(screen.getByLabelText('再输一次新密码'), 'newpass12')
+    const btn = screen.getByRole('button', { name: '改密码' })
+    expect(btn).toBeDisabled()
+    await user.type(screen.getByLabelText('两步验证码或恢复码'), '654321')
+    expect(btn).toBeEnabled()
+    await user.click(btn)
+    await waitFor(() => expect(calls.some((c) => c.url === '/api/v1/account/set-password')).toBe(true))
+    expect(calls.find((c) => c.url === '/api/v1/account/set-password')?.body).toEqual({
+      'new-password': 'newpass12',
+      'verify-password': 'secret12',
+      'verify-code': '654321',
+    })
+  })
 })

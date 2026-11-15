@@ -41,7 +41,8 @@ function satchelManifest(): Plugin {
     name: 'satchel-manifest',
     apply: 'build',
     generateBundle() {
-      const { manifest, problems } = buildManifest({ version: process.env.SATCHEL_WEB_VERSION || 'dev', pages, commands, text: localeText })
+      const routesDir = fileURLToPath(new URL('./src/routes', import.meta.url))
+      const { manifest, problems } = buildManifest({ version: process.env.SATCHEL_WEB_VERSION || 'dev', pages, commands, text: localeText, routesDir })
       if (problems.length > 0) this.error('页面清单有问题：\n' + problems.join('\n'))
       this.emitFile({ type: 'asset', fileName: 'satchel-web.json', source: JSON.stringify(manifest, null, 2) + '\n' })
     },

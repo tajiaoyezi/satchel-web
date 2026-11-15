@@ -1,6 +1,7 @@
 import { useEffect, useEffectEvent, useState } from 'react'
 
 import { ApiError, isUnreachable, run, type ErrorBody } from '@/api/client'
+import { isUnauthenticated, notifyUnauthenticated } from '@/api/query'
 import type { Job } from '@/api/types'
 
 // FINISHED 是 job 的结局：done、failed，以及留给 M2 的 unknown（CLI 也把它当作结束）。
@@ -36,6 +37,7 @@ export interface FollowState {
 
 export interface FollowOptions {
   onFinish?: (job: Job) => void
+  onUnauthenticated?: () => void
   intervalMs?: number
   maxDownMs?: number
   timeoutMs?: number
@@ -48,13 +50,14 @@ const realSleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
 // useJobFollower 跟一个受理了的长任务（web-console「长任务的跟踪」）：每隔 intervalMs 查一次 job get，直到结局，结局时调 onFinish。
 // 连不上主控（isUnreachable）不算失败：接着查，从第一次连不上的那次请求发出时起满 maxDownMs 才停；中间有一次成功就重新算。
 // 一次请求过了 timeoutMs 还没回应就中止，算连不上：挂住不回的请求不会让上限失效。组件卸载时停止查询，job 不受影响。
-// sleep 与 now 可以换，测试里不用真等。
+// 收到 unauthenticated 时停止查询并通知全局跳转登录页。sleep 与 now 可以换，测试里不用真等。
 export function useJobFollower(
   accepted: Job,
-  { onFinish, intervalMs = 1000, maxDownMs = 120000, timeoutMs = 10000, sleep = realSleep, now = Date.now }: FollowOptions = {},
+  { onFinish, onUnauthenticated, intervalMs = 1000, maxDownMs = 120000, timeoutMs = 10000, sleep = realSleep, now = Date.now }: FollowOptions = {},
 ): FollowState {
   const [state, setState] = useState<FollowState>({ job: accepted, unreachable: false, error: null })
   const finish = useEffectEvent((job: Job) => onFinish?.(job))
+  const unauthenticated = useEffectEvent(() => (onUnauthenticated ?? notifyUnauthenticated)())
   const jobId = accepted.job_id
   useEffect(() => {
     let stopped = false
@@ -69,6 +72,10 @@ export function useJobFollower(
           job = await run<Job>('job get', { args: [jobId], signal: AbortSignal.timeout(timeoutMs) })
         } catch (e) {
           if (stopped) return
+          if (isUnauthenticated(e)) {
+            unauthenticated()
+            return setState((s) => ({ ...s, error: e }))
+          }
           if (!isUnreachable(e)) return setState((s) => ({ ...s, error: e }))
           downSince ??= started
           if (now() - downSince >= maxDownMs) return setState((s) => ({ ...s, unreachable: true }))

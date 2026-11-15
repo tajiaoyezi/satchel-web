@@ -62,7 +62,8 @@ function CreateAdmin() {
   const create = useMutation({
     mutationFn: () => run('setup init', { flags: { username, password, email: email.trim() || undefined } }),
     onSuccess: async () => {
-      await queryClient.invalidateQueries()
+      await queryClient.invalidateQueries({ predicate: (q) => q.queryKey[0] !== setupStatusQuery.queryKey[0] })
+      queryClient.setQueryData(setupStatusQuery.queryKey, (prev) => ({ paths: prev?.paths ?? {}, initialized: true }))
       await navigate({ to: '/' }) // setup init 成功会顺手下发会话，已经登录了
     },
   })

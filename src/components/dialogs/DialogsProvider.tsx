@@ -94,6 +94,8 @@ function VerifyDialog({ onDone }: { onDone: (v: Verification | null) => void }) 
   const [code, setCode] = useState('')
   const [showCode, setShowCode] = useState(false)
   const needCode = account?.totp_enabled === true
+  const trimmedCode = code.trim()
+  const canSubmit = Boolean(password) && (!needCode || trimmedCode.length > 0)
   return (
     <Dialog open onOpenChange={(open) => !open && onDone(null)}>
       <DialogContent>
@@ -101,7 +103,7 @@ function VerifyDialog({ onDone }: { onDone: (v: Verification | null) => void }) 
           className="grid gap-4"
           onSubmit={(e) => {
             e.preventDefault()
-            if (password) onDone({ password, code: code.trim() || undefined })
+            if (canSubmit) onDone({ password, code: trimmedCode || undefined })
           }}
         >
           <DialogHeader>
@@ -127,7 +129,7 @@ function VerifyDialog({ onDone }: { onDone: (v: Verification | null) => void }) 
             <Button type="button" variant="outline" onClick={() => onDone(null)}>
               {t('actions.cancel')}
             </Button>
-            <Button type="submit" disabled={!password}>
+            <Button type="submit" disabled={!canSubmit}>
               {t('verify.submit')}
             </Button>
           </DialogFooter>

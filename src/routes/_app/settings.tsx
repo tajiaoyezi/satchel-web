@@ -304,7 +304,12 @@ function GatesCard({ values }: { values: Values }) {
     if (opening && !(await dialogs.confirm({ title: t('gates.riskTitle'), description: t('gates.riskDescription'), confirmLabel: t('gates.riskConfirm'), destructive: true }))) return
     const verify = await dialogs.verify()
     if (!verify) return
-    write.mutate((rv) => run<SettingsObject>('settings gates set', { flags: { set: { ...switches, ...texts }, 'resource-version': rv }, verify }))
+    write.mutate((rv) => run<SettingsObject>('settings gates set', { flags: { set: { ...switches, ...texts }, 'resource-version': rv }, verify }), {
+      onSuccess: (obj) => {
+        const next = str({ ...obj.spec, ...obj.status }.turnstile_secret_key)
+        setTexts((cur) => ({ ...cur, turnstile_secret_key: next === '' ? '' : MASKED }))
+      },
+    })
   }
   const label = (f: string) => t(`gates.${camel(f)}` as 'gates.silentMode')
   return (

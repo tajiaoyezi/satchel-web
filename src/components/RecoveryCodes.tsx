@@ -3,22 +3,25 @@ import { toast } from 'sonner'
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
+import { copyText } from '@/lib/clipboard'
 
 // RecoveryCodes 显示一批新的恢复码：只显示这一次（调用方在 onDone 之后丢掉它们），可以复制与下载成文本文件。
 export function RecoveryCodes({ codes, onDone }: { codes: string[]; onDone: () => void }) {
   const { t } = useTranslation('account')
   const text = codes.join('\n') + '\n'
   const copy = async () => {
-    await navigator.clipboard.writeText(text)
-    toast.success(t('actions.copied', { ns: 'common' }))
+    if (await copyText(text)) toast.success(t('actions.copied', { ns: 'common' }))
+    else toast.error(t('actions.copyFailed', { ns: 'common' }))
   }
   const download = () => {
     const url = URL.createObjectURL(new Blob([text], { type: 'text/plain' }))
     const a = document.createElement('a')
     a.href = url
     a.download = 'satchel-recovery-codes.txt'
+    document.body.appendChild(a)
     a.click()
-    URL.revokeObjectURL(url)
+    a.remove()
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
   return (
     <div className="grid gap-3" data-testid="recovery-codes">

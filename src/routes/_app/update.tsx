@@ -95,7 +95,7 @@ function UpdateBody() {
                 <span>{c.cdn.used ? t('cdn.used') : t('cdn.notUsed')}</span>
                 {c.cdn.reason && <span>{t('cdn.reason', { reason: c.cdn.reason })}</span>}
               </p>
-              {c.release_url && (
+              {/^https?:\/\//i.test(c.release_url) && (
                 <a className="text-primary underline-offset-4 hover:underline" href={c.release_url} target="_blank" rel="noreferrer">
                   {t('releasePage')}
                 </a>

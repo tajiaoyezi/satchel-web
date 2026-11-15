@@ -44,6 +44,9 @@ describe('初始化向导', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe('/'))
     await screen.findByRole('link', { name: 'API 令牌' })
     expect(calls.find((c) => c.url === '/api/v1/setup/init')?.body).toEqual({ username: 'admin', password: 'secret12' })
+    // 缓存已同步设为 initialized=true，提交后不再重新请求 /setup/status 也不会跳回 /setup 产生闪烁
+    const initIdx = calls.findIndex((c) => c.url === '/api/v1/setup/init')
+    expect(calls.slice(initIdx + 1).filter((c) => c.url === '/api/v1/setup/status')).toHaveLength(0)
   })
 
   it('两次密码不一致时不提交', async () => {

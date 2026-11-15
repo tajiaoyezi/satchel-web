@@ -36,6 +36,12 @@ interface Filters {
 
 const empty: Filters = { actor: '', command: '', since: '' }
 
+function validSince(raw: string): string | undefined {
+  if (!raw) return undefined
+  const d = new Date(raw)
+  return Number.isNaN(d.getTime()) ? undefined : d.toISOString()
+}
+
 // 审计页（web-console「审计页」）：按时间倒序列出审计记录，按账号、命令前缀与起始时间过滤；起始时间按本地时间选，发请求时转成 RFC 3339。
 function AuditPage() {
   const { t } = useTranslation('audit')
@@ -54,7 +60,7 @@ function AuditBody() {
     queryKey: ['audit list', applied],
     queryFn: ({ pageParam }) =>
       run<Page<AuditRecord>>('audit list', {
-        flags: { actor: applied.actor || undefined, command: applied.command || undefined, since: applied.since ? new Date(applied.since).toISOString() : undefined },
+        flags: { actor: applied.actor || undefined, command: applied.command || undefined, since: validSince(applied.since) },
         limit: 50,
         cursor: pageParam,
       }),

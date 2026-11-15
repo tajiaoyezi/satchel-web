@@ -69,9 +69,10 @@ function ChangePassword({ totp }: { totp: boolean }) {
   const [again, setAgain] = useState('')
   const [code, setCode] = useState('')
   const [mismatch, setMismatch] = useState(false)
+  const trimmedCode = code.trim()
   const change = useMutation({
     // 当前密码就是当场验证的密码（account set-password 是人类专属命令）
-    mutationFn: () => run('account set-password', { flags: { 'new-password': next }, verify: { password: current, code: code.trim() || undefined } }),
+    mutationFn: () => run('account set-password', { flags: { 'new-password': next }, verify: { password: current, code: trimmedCode || undefined } }),
     onSuccess: async () => {
       toast.success(t('password.done'))
       setCurrent('')
@@ -83,6 +84,7 @@ function ChangePassword({ totp }: { totp: boolean }) {
   })
   const submit = (e: FormEvent) => {
     e.preventDefault()
+    if (!current || !next || !again || (totp && !trimmedCode)) return
     if (next !== again) {
       setMismatch(true)
       return
@@ -118,7 +120,7 @@ function ChangePassword({ totp }: { totp: boolean }) {
           )}
           {mismatch && <p className="text-destructive text-sm">{t('password.mismatch')}</p>}
           <ErrorNotice error={change.error} />
-          <Button type="submit" className="justify-self-start" disabled={!current || !next || !again || change.isPending}>
+          <Button type="submit" className="justify-self-start" disabled={!current || !next || !again || (totp && !trimmedCode) || change.isPending}>
             {t('password.submit')}
           </Button>
         </form>

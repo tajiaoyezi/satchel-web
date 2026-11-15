@@ -4,6 +4,7 @@ import { render, renderHook, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { Job } from '@/api/types'
+import { createQueryClient } from '@/api/query'
 import { JobProgress } from '@/components/JobProgress'
 
 import { useJobFollower } from './jobs'
@@ -98,6 +99,26 @@ describe('useJobFollower', () => {
     const { result } = renderHook(() => useJobFollower(accepted, c))
     await waitFor(() => expect(result.current.error).toBeTruthy())
     expect(result.current.unreachable).toBe(false)
+  })
+
+  it('轮询收到 unauthenticated 时停止查询并通知跳登录页', async () => {
+    const c = clock()
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ code: 'unauthenticated', reason: '没有身份', state: {}, next: '' }), { status: 401 }))
+    vi.stubGlobal('fetch', fetchMock)
+    const onUnauthenticated = vi.fn()
+    const { result } = renderHook(() => useJobFollower(accepted, { ...c, onUnauthenticated }))
+    await waitFor(() => expect(result.current.error).toBeTruthy())
+    expect(onUnauthenticated).toHaveBeenCalledTimes(1)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+
+    // 未传 onUnauthenticated 时走 createQueryClient 注册的全局回调。
+    fetchMock.mockClear()
+    const globalUnauth = vi.fn()
+    createQueryClient(globalUnauth)
+    const hook2 = renderHook(() => useJobFollower(accepted, c))
+    await waitFor(() => expect(hook2.result.current.error).toBeTruthy())
+    expect(globalUnauth).toHaveBeenCalledTimes(1)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
   it('卸载之后不再查', async () => {

@@ -215,4 +215,31 @@ describe('系统设置页', () => {
     expect(await screen.findByText(/只收 PNG、JPEG、GIF、WebP 与 ICO 图片/)).toBeTruthy()
     expect(screen.getByLabelText('登录壁纸地址')).toHaveValue('https://img.example/a.jpg')
   })
+
+  it('保存打码 secret key 后输入框重设为 ***，改品牌后顶栏立即同步', async () => {
+    const user = userEvent.setup()
+    localStorage.clear()
+    const calls = server({
+      'POST /api/v1/settings/gates/set': { body: settings(5, { status: { turnstile_secret_key: '***' } }) },
+      'POST /api/v1/settings/set': () => ({ body: settings(5, { spec: { branding_brand_title: '新名称', default_theme: 'pixel' } }) }),
+    })
+    renderApp('/settings')
+
+    // 1) 修改已配置 secret key 并保存后（后端返回仍为 ***），明文输入应复位为 ***
+    const secret = await screen.findByLabelText(/^secret key/)
+    await user.clear(secret)
+    await user.type(secret, 'new-plain-secret')
+    await user.click(screen.getByRole('button', { name: '保存门与登录防护' }))
+    await user.type(await screen.findByLabelText('密码'), 'secret12')
+    await user.click(screen.getByRole('button', { name: '确认' }))
+    await waitFor(() => expect(calls.some((c) => c.url === '/api/v1/settings/gates/set')).toBe(true))
+    await waitFor(() => expect(screen.getByLabelText(/^secret key/)).toHaveValue('***'))
+
+    // 2) 保存品牌标题后，同一页面的 TopNav 立即显示新标题（不刷新）
+    const brand = screen.getByLabelText('品牌标题（登录页与导航上的名字）')
+    await user.clear(brand)
+    await user.type(brand, '新名称')
+    await user.click(screen.getByRole('button', { name: '保存品牌与外观' }))
+    expect(await screen.findByRole('link', { name: '新名称' })).toBeTruthy()
+  })
 })

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, redirect, useRouter } from '@tanstack/react-router'
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -7,7 +7,8 @@ import { toast } from 'sonner'
 import { ApiError } from '@/api/client'
 import { setupStatusQuery } from '@/api/queries'
 import { captchaConfig, completeTwoFactor, login, type LoginResult } from '@/api/session'
-import { readBoot } from '@/boot'
+import { useBoot } from '@/boot'
+import { safeRedirect } from '@/router'
 import { ErrorNotice } from '@/components/ErrorNotice'
 import { Turnstile } from '@/components/Turnstile'
 import { Button } from '@/components/ui/button'
@@ -35,9 +36,9 @@ export const Route = createFileRoute('/login')({
 // 第二步失败后票据作废、回到用户名与密码；被限流时显示解锁时间。登录页自己的失败不触发「回登录页」。
 function LoginPage() {
   const { t } = useTranslation('login')
-  const boot = readBoot()
+  const boot = useBoot()
   const search = Route.useSearch()
-  const navigate = useNavigate()
+  const router = useRouter()
   const queryClient = useQueryClient()
   const captcha = useQuery({ queryKey: ['session captcha'], queryFn: captchaConfig, meta: { skipAuthRedirect: true } }).data
   const [username, setUsername] = useState('')
@@ -51,7 +52,7 @@ function LoginPage() {
   const done = async (res: LoginResult) => {
     if (res.recovery_codes_low) toast.warning(t('recoveryLow'))
     await queryClient.invalidateQueries()
-    await navigate({ to: search.redirect || '/' })
+    router.history.push(safeRedirect(search.redirect))
   }
 
   const first = useMutation({

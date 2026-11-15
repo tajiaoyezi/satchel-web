@@ -87,4 +87,11 @@ describe('升级页', () => {
     expect(await screen.findByText('更新 CDN 与 GitHub 都取不到版本信息')).toBeTruthy()
     expect(query(calls.at(-1)!).get('channel')).toBe('prerelease')
   })
+
+  it('非 http/https 的 release_url 不渲染成链接', async () => {
+    opsServer({ 'GET /api/v1/update/check': check({ release_url: 'javascript:alert(1)' }) })
+    renderApp('/update')
+    expect(await screen.findByText('最新版本：0.1.1')).toBeTruthy()
+    expect(screen.queryByRole('link', { name: '发布页' })).toBeNull()
+  })
 })

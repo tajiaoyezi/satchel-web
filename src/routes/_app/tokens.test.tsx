@@ -1,11 +1,15 @@
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { toast } from 'sonner'
 
 import { renderApp } from '@/test/render'
 import { adminAccount, fakeServer } from '@/test/server'
 
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => {
+  vi.restoreAllMocks()
+  vi.unstubAllGlobals()
+})
 
 const base = { owner: 'admin', preset: 'readonly', scopes: ['read'], danger: [], runtime: '', expires_at: null, last_used_at: null, created_at: '2026-10-01T00:00:00Z', revoked_at: null, state: 'active' }
 
@@ -70,5 +74,35 @@ describe('API 令牌页', () => {
     await user.type(await screen.findByLabelText('密码'), 'secret12')
     await user.click(screen.getByRole('button', { name: '确认' }))
     expect(await screen.findByText(/普通用户不能签危险类/)).toBeTruthy()
+  })
+
+  it('纯 HTTP 缺少 clipboard 时降级拷贝新令牌并在失败时提示 toast', async () => {
+    const user = userEvent.setup()
+    fakeServer({
+      'GET /api/v1/setup/status': { body: { initialized: true, paths: {} } },
+      'GET /api/v1/account/show': { body: adminAccount },
+      'GET /api/v1/token': { body: { items: [], nextCursor: '' } },
+      'POST /api/v1/token/create': { body: { ...base, id: 2, name: 'http-copy', token: 'sat_http_plain' } },
+    })
+    renderApp('/tokens')
+    await user.click(await screen.findByRole('button', { name: '新建令牌' }))
+    await user.type(screen.getByLabelText('名字（1 到 64 个字符）'), 'http-copy')
+    await user.click(screen.getByRole('button', { name: '保存' }))
+    await user.type(await screen.findByLabelText('密码'), 'secret12')
+    await user.click(screen.getByRole('button', { name: '确认' }))
+    expect(await screen.findByTestId('token-plain')).toHaveTextContent('sat_http_plain')
+
+    Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true })
+    const exec = vi.fn(() => true)
+    document.execCommand = exec
+    const okSpy = vi.spyOn(toast, 'success')
+    const errSpy = vi.spyOn(toast, 'error')
+    await user.click(screen.getByRole('button', { name: '复制' }))
+    await waitFor(() => expect(exec).toHaveBeenCalledWith('copy'))
+    expect(okSpy).toHaveBeenCalledWith('已复制')
+
+    exec.mockReturnValue(false)
+    await user.click(screen.getByRole('button', { name: '复制' }))
+    await waitFor(() => expect(errSpy).toHaveBeenCalledWith('复制失败，请手动选中复制'))
   })
 })

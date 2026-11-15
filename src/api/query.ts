@@ -7,9 +7,17 @@ export function isUnauthenticated(error: unknown): boolean {
   return error instanceof ApiError && error.code === 'unauthenticated'
 }
 
+let unauthenticatedHandler: (() => void) | null = null
+
+// notifyUnauthenticated 让非 React Query 的请求（如长任务轮询）在收到 unauthenticated 时走同一套回登录页流程。
+export function notifyUnauthenticated() {
+  unauthenticatedHandler?.()
+}
+
 // createQueryClient 建 React Query 的客户端：任何查询或操作返回 unauthenticated 时调 onUnauthenticated（回登录页，
 // web-console「会话与跳转」）。登录页自己的请求带 meta.skipAuthRedirect，它的 unauthenticated 是「用户名或密码不对」。
 export function createQueryClient(onUnauthenticated: () => void): QueryClient {
+  unauthenticatedHandler = onUnauthenticated
   return new QueryClient({
     queryCache: new QueryCache({
       onError: (error, query) => {

@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react'
+import { fireEvent, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -43,5 +43,21 @@ describe('审计页', () => {
     expect(row.textContent).not.toContain('telegram_bot_token')
     await user.click(row.querySelector('button')!)
     expect(row.textContent).toContain('"telegram_bot_token": "***"')
+  })
+
+  it('非法起始时间不抛异常且不向主控发送非法 since 参数', async () => {
+    const calls = opsServer({ 'GET /api/v1/audit': page(records) })
+    renderApp('/audit')
+    expect(await screen.findByTestId('audit-2')).toBeTruthy()
+    const before = calls.filter((c) => c.url.startsWith('/api/v1/audit')).length
+    const sinceInput = screen.getByLabelText('起始时间') as HTMLInputElement
+    sinceInput.type = 'text'
+    fireEvent.change(sinceInput, { target: { value: 'not-a-valid-date' } })
+    fireEvent.change(screen.getByLabelText('命令前缀'), { target: { value: 'backup' } })
+    fireEvent.click(screen.getByRole('button', { name: '查询' }))
+    await waitFor(() => expect(calls.filter((c) => c.url.startsWith('/api/v1/audit')).length).toBeGreaterThan(before))
+    const q = query(calls.at(-1)!)
+    expect(q.get('command')).toBe('backup')
+    expect(q.get('since')).toBeNull()
   })
 })

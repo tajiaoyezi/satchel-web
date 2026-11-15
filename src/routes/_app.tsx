@@ -3,6 +3,7 @@ import { Outlet, createFileRoute, redirect } from '@tanstack/react-router'
 import { accountQuery, setupStatusQuery } from '@/api/queries'
 import { isUnauthenticated } from '@/api/query'
 import { TopNav } from '@/components/layout/TopNav'
+import { safeRedirect } from '@/router'
 
 // 登录后的页面共用的布局与守卫（web-console「会话与跳转」）：库里还没有用户去初始化向导，没登录去登录页并记下要回的地方。
 export const Route = createFileRoute('/_app')({
@@ -12,7 +13,7 @@ export const Route = createFileRoute('/_app')({
     try {
       await context.queryClient.ensureQueryData({ ...accountQuery, meta: { skipAuthRedirect: true } })
     } catch (e) {
-      if (isUnauthenticated(e)) throw redirect({ to: '/login', search: { redirect: location.href } })
+      if (isUnauthenticated(e)) throw redirect({ to: '/login', search: { redirect: safeRedirect(location.href) } })
       throw e
     }
   },

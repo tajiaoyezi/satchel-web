@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 
-import { readBoot } from '@/boot'
+import { useBoot } from '@/boot'
 
 import { STORAGE_MODE, STORAGE_THEME, effectiveTheme, isThemeName, type Mode, type ThemeName } from './themes'
 
@@ -36,12 +36,12 @@ function systemDark(): boolean {
 
 // ThemeProvider 管运行中的主题切换；首屏由 public/boot.js 设好，这里接着用同样的规则，选择存在浏览器本地。
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<ThemeName>(() => {
+  const boot = useBoot()
+  const [userTheme, setUserTheme] = useState<ThemeName | null>(() => {
     const stored = readStorage(STORAGE_THEME)
-    if (isThemeName(stored)) return stored
-    const boot = readBoot().default_theme
-    return isThemeName(boot) ? boot : 'flat'
+    return isThemeName(stored) ? stored : null
   })
+  const theme: ThemeName = userTheme ?? (isThemeName(boot.default_theme) ? boot.default_theme : 'flat')
   const [mode, setModeState] = useState<Mode>(() => {
     const stored = readStorage(STORAGE_MODE)
     return stored === 'light' || stored === 'dark' ? stored : 'system'
@@ -65,7 +65,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   const setTheme = useCallback((t: ThemeName) => {
     writeStorage(STORAGE_THEME, t)
-    setThemeState(t)
+    setUserTheme(t)
   }, [])
   const setMode = useCallback((m: Mode) => {
     writeStorage(STORAGE_MODE, m)
