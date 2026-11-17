@@ -6,7 +6,7 @@ import { Secret, TOTP } from 'otpauth'
 
 // 端到端测试（web-console「网页的测试」）：对一个空库的主控按顺序跑向导、两步验证、两步登录、令牌新建与吊销、
 // 改品牌后的登录页、Turnstile 测试配置与登录，然后是运维：上传 logo、日志、定时任务、生成与下载备份、长任务与审计、
-// 封禁与解封。恢复备份、数据库迁移与升级会让主控退出（这里没有服务管理器把它拉起来），不在这里跑。
+// 封禁与解封，最后是服务器页。恢复备份、数据库迁移与升级会让主控退出（这里没有服务管理器把它拉起来），不在这里跑。
 // 各步共用一个浏览器页面与账号，所以串行。每一步结束时核对页面上没有 CSP 违规（securitypolicyviolation）与未处理的脚本错误（pageerror）。
 
 const admin = { username: 'admin', password: 'e2e-pass-1234' }
@@ -263,4 +263,45 @@ test('封禁并解封一个 IP：安全事件里多了两条', async () => {
   const events = page.getByRole('row').filter({ hasText: '198.51.100.7' })
   await expect(events.filter({ hasText: '手动封禁' })).toHaveCount(1)
   await expect(events.filter({ hasText: '解封' })).toHaveCount(1)
+})
+
+// 服务器页（m2-07）：这里没有真的节点，只走不需要节点的路径。连接模式、安装命令的内容与错误原文由主控决定，不断言。
+// 放在最后：设主控地址会改设置。
+test('服务器页：添加服务器，取安装命令，对没连上的服务器设限速看到错误', async () => {
+  await page.getByRole('link', { name: '服务器' }).click()
+  await page.getByRole('button', { name: '添加服务器' }).click()
+  const form = page.getByRole('dialog', { name: '添加服务器' })
+  await form.getByLabel('名字').fill('e2e-node')
+  await form.getByRole('button', { name: '添加' }).click()
+  await expect(page).toHaveURL(/\/servers\/e2e-node$/)
+  await expect(page.getByRole('heading', { name: 'e2e-node' })).toBeVisible()
+  await expect(page.getByText('等待首次连接')).toBeVisible()
+
+  await page.getByRole('link', { name: '服务器列表' }).click()
+  await expect(page.getByTestId('server-e2e-node')).toContainText('等待首次连接')
+  await page.getByTestId('server-e2e-node').click()
+
+  // 主控地址没设：显示主控的错误
+  await page.getByRole('button', { name: '取安装命令' }).click()
+  await expect(page.getByRole('alert')).toBeVisible()
+  await expect(page.getByTestId('install-command')).toHaveCount(0)
+
+  await page.goto('/settings')
+  await page.getByLabel('主控地址', { exact: true }).fill('https://panel.e2e.example')
+  await page.getByRole('button', { name: '保存主控地址' }).click()
+  await verify(await freshCode())
+  await expect(page.getByText('已保存', { exact: true })).toBeVisible()
+
+  await page.goto('/servers/e2e-node')
+  await page.getByRole('button', { name: '取安装命令' }).click()
+  await expect(page.getByTestId('install-command')).not.toBeEmpty()
+  await expect(page.getByText('https://panel.e2e.example', { exact: true })).toBeVisible()
+
+  await page.getByRole('tab', { name: '限速' }).click()
+  await page.getByLabel('入站').fill('in1')
+  await page.getByLabel('凭据').fill('A')
+  await page.getByLabel('限速（Mbps）').fill('5')
+  await page.getByRole('button', { name: '设置' }).click()
+  await expect(page.getByRole('alert')).toBeVisible()
+  await expect(page.getByTestId('limit-result')).toHaveCount(0)
 })

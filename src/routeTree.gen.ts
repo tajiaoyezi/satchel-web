@@ -24,6 +24,8 @@ import { Route as AppSecurityRouteImport } from './routes/_app/security'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppTokensRouteImport } from './routes/_app/tokens'
 import { Route as AppUpdateRouteImport } from './routes/_app/update'
+import { Route as AppServersIndexRouteImport } from './routes/_app/servers/index'
+import { Route as AppServersNameRouteImport } from './routes/_app/servers/$name'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -99,6 +101,16 @@ const AppUpdateRoute = AppUpdateRouteImport.update({
   path: '/update',
   getParentRoute: () => AppRoute,
 } as any)
+const AppServersIndexRoute = AppServersIndexRouteImport.update({
+  id: '/servers/',
+  path: '/servers/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppServersNameRoute = AppServersNameRouteImport.update({
+  id: '/servers/$name',
+  path: '/servers/$name',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
@@ -115,6 +127,8 @@ export interface FileRoutesByFullPath {
   '/settings': typeof AppSettingsRoute
   '/tokens': typeof AppTokensRoute
   '/update': typeof AppUpdateRoute
+  '/servers/$name': typeof AppServersNameRoute
+  '/servers/': typeof AppServersIndexRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
@@ -131,6 +145,8 @@ export interface FileRoutesByTo {
   '/tokens': typeof AppTokensRoute
   '/update': typeof AppUpdateRoute
   '/': typeof AppIndexRoute
+  '/servers/$name': typeof AppServersNameRoute
+  '/servers': typeof AppServersIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -149,6 +165,8 @@ export interface FileRoutesById {
   '/_app/tokens': typeof AppTokensRoute
   '/_app/update': typeof AppUpdateRoute
   '/_app/': typeof AppIndexRoute
+  '/_app/servers/$name': typeof AppServersNameRoute
+  '/_app/servers/': typeof AppServersIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -167,6 +185,8 @@ export interface FileRouteTypes {
     | '/settings'
     | '/tokens'
     | '/update'
+    | '/servers/$name'
+    | '/servers/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
@@ -183,6 +203,8 @@ export interface FileRouteTypes {
     | '/tokens'
     | '/update'
     | '/'
+    | '/servers/$name'
+    | '/servers'
   id:
     | '__root__'
     | '/_app'
@@ -200,6 +222,8 @@ export interface FileRouteTypes {
     | '/_app/tokens'
     | '/_app/update'
     | '/_app/'
+    | '/_app/servers/$name'
+    | '/_app/servers/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -315,6 +339,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppUpdateRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/servers/': {
+      id: '/_app/servers/'
+      path: '/servers'
+      fullPath: '/servers/'
+      preLoaderRoute: typeof AppServersIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/servers/$name': {
+      id: '/_app/servers/$name'
+      path: '/servers/$name'
+      fullPath: '/servers/$name'
+      preLoaderRoute: typeof AppServersNameRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
@@ -331,6 +369,8 @@ interface AppRouteChildren {
   AppTokensRoute: typeof AppTokensRoute
   AppUpdateRoute: typeof AppUpdateRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppServersNameRoute: typeof AppServersNameRoute
+  AppServersIndexRoute: typeof AppServersIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -346,6 +386,8 @@ const AppRouteChildren: AppRouteChildren = {
   AppTokensRoute: AppTokensRoute,
   AppUpdateRoute: AppUpdateRoute,
   AppIndexRoute: AppIndexRoute,
+  AppServersNameRoute: AppServersNameRoute,
+  AppServersIndexRoute: AppServersIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

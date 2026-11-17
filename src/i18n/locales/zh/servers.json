@@ -1,0 +1,136 @@
+{
+  "title": "服务器",
+  "actions": {
+    "list": "列出服务器",
+    "add": "添加服务器",
+    "get": "查看服务器",
+    "installCommand": "取安装命令",
+    "traffic": "看流量",
+    "connections": "看连接",
+    "limitSet": "设临时限速",
+    "limitClear": "撤临时限速",
+    "kick": "踢线",
+    "restartKernel": "重启内核"
+  },
+  "statuses": {
+    "pending": "等待首次连接",
+    "connected": "在线",
+    "offline": "离线"
+  },
+  "fields": {
+    "status": "状态",
+    "mode": "连接模式",
+    "ipv4": "IPv4",
+    "ipv6": "IPv6",
+    "lastHeartbeat": "最近心跳",
+    "offlineSince": "离线起始",
+    "bootCount": "satchel-agent 启动次数",
+    "core": "内核",
+    "coreVersion": "内核版本",
+    "coreBootTime": "内核最近启动",
+    "coreBootCount": "内核重启次数",
+    "inbounds": "入站",
+    "none": "无",
+    "noHeartbeat": "还没有心跳",
+    "running": "运行中",
+    "notRunning": "没在跑"
+  },
+  "list": {
+    "online": "在线 {{count}}",
+    "offline": "离线 {{count}}",
+    "total": "共 {{count}} 台",
+    "partial": "台数只算了已加载的部分",
+    "empty": "还没有服务器。点「添加服务器」，再在详情页取安装命令，到节点上执行。",
+    "loadMore": "加载更多"
+  },
+  "add": {
+    "title": "添加服务器",
+    "description": "建好之后在详情页取安装命令，到节点上执行。连接模式用主控的默认值。",
+    "name": "名字",
+    "submit": "添加"
+  },
+  "detail": {
+    "back": "服务器列表",
+    "tabs": {
+      "overview": "概况",
+      "traffic": "流量",
+      "connections": "连接",
+      "limit": "限速",
+      "kick": "踢线"
+    }
+  },
+  "install": {
+    "title": "安装命令",
+    "description": "在节点上以 root 执行这条命令，安装 satchel-agent 并连上主控。命令里带着这台服务器的 token，不要发给别人。",
+    "fetch": "取安装命令",
+    "masterUrl": "主控地址",
+    "fingerprint": "主控公钥指纹"
+  },
+  "traffic": {
+    "description": "累计在主控内存里，主控重启后从零开始。",
+    "since": "累计开始于 {{time}}",
+    "collectedAt": "最近一次收到快照：{{time}}",
+    "notCollected": "还没有收到这台服务器的流量快照。",
+    "inbound": "入站",
+    "outbound": "出站",
+    "credential": "凭据",
+    "uplink": "上行",
+    "downlink": "下行",
+    "empty": "还没有流量记录。",
+    "toConnections": "连接",
+    "toLimit": "限速",
+    "toKick": "踢线"
+  },
+  "target": {
+    "inbound": "入站",
+    "inboundHint": "入站的 tag，如 in1",
+    "credential": "凭据",
+    "credentialHint": "入站里用户的名字"
+  },
+  "connections": {
+    "description": "填好入站与凭据后查询。每次查询都要问节点，所以不自动刷新。",
+    "search": "查询",
+    "refresh": "刷新",
+    "id": "id",
+    "network": "网络",
+    "peer": "对端",
+    "outbound": "出站",
+    "start": "开始时间",
+    "empty": "没有活动连接。",
+    "loadMore": "加载更多"
+  },
+  "limit": {
+    "description": "这里只动「主控临时」这一份，生效值取三份来源里最小的。设成 0 表示这一份显式不限速；「撤掉」让这一份退出合成，与设成 0 不同。",
+    "mbps": "限速（Mbps）",
+    "expiresIn": "有效时长",
+    "expiresInHint": "如 30m、2h；不填表示一直有效",
+    "set": "设置",
+    "clear": "撤掉",
+    "result": "{{inbound}} × {{credential}} 现在的限速",
+    "sources": {
+      "static": "静态",
+      "master": "主控临时",
+      "node_rule": "节点规则临时"
+    },
+    "notSet": "未设",
+    "unlimited": "不限",
+    "value": "{{mbps}} Mbps",
+    "withDeadline": "{{value}}（到 {{time}}）",
+    "effective": "生效值：{{mbps}} Mbps",
+    "notLimited": "现在不限速"
+  },
+  "kick": {
+    "description": "踢线只断开现有连接，不是封禁，对方可以马上重连。",
+    "inboundOptional": "入站（可以不填）",
+    "allInbounds": "没填入站：会踢 {{credential}} 在所有入站上的连接。",
+    "submit": "踢线",
+    "result": "踢掉了 {{count}} 条连接"
+  },
+  "restart": {
+    "button": "重启内核",
+    "confirmTitle": "重启 {{name}} 的内核",
+    "confirmDescription": "节点会重新读 kernel.json，在同一个进程里重启内核。已有连接会断开，流量计数与限速来源保留。",
+    "done": "内核已重启",
+    "startedAt": "启动时间"
+  }
+}

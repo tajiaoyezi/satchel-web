@@ -54,6 +54,16 @@ export const commands = {
   'database migrate': { method: 'POST', path: '/api/v1/database/migrate' },
   'update check': { method: 'GET', path: '/api/v1/update/check' },
   'update apply': { method: 'POST', path: '/api/v1/update/apply/{version}' },
+  'server list': { method: 'GET', path: '/api/v1/server', list: true },
+  'server add': { method: 'POST', path: '/api/v1/server/add/{name}' },
+  'server get': { method: 'GET', path: '/api/v1/server/get/{name}' },
+  'server install-command': { method: 'GET', path: '/api/v1/server/install-command/{name}' },
+  'server traffic': { method: 'GET', path: '/api/v1/server/traffic/{name}' },
+  'server connections': { method: 'GET', path: '/api/v1/server/connections/{name}', list: true },
+  'server limit set': { method: 'POST', path: '/api/v1/server/limit/set/{name}' },
+  'server limit clear': { method: 'POST', path: '/api/v1/server/limit/clear/{name}' },
+  'server kick': { method: 'POST', path: '/api/v1/server/kick/{name}' },
+  'server restart-kernel': { method: 'POST', path: '/api/v1/server/restart-kernel/{name}' },
 } as const satisfies Record<string, CommandRoute>
 
 export type CommandName = keyof typeof commands

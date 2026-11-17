@@ -3,7 +3,7 @@ import type { SessionEntry } from './api/session-entries'
 
 // 页面清单（master-web「页面清单与命令表一致」）：每一页的「可见操作 → CLI 命令」对照表。页面上能点的每个操作都要在这里，
 // 写对应的命令，或者会话入口；文案写资源文件里的 key（命名空间:路径），构建时换成中文写进 dist/satchel-web.json。
-// m1-11 交付前六页，m1-12 加八个运维页。人类专属命令的错误提示取第一个提供它的页面（master-web），所以这几条只写在它们本来的那一页。
+// m1-11 交付前六页，m1-12 加八个运维页，m2-07 加服务器页（详情页 /servers/<名字> 属于同一页）。人类专属命令的错误提示取第一个提供它的页面（master-web），所以这几条只写在它们本来的那一页。
 export interface ActionDef {
   labelKey: string
   command?: CommandName
@@ -56,6 +56,23 @@ export const pages: PageDef[] = [
       { labelKey: 'account:actions.totpDisable', command: 'account totp disable' },
       { labelKey: 'account:actions.regenerate', command: 'account recovery-codes regenerate' },
       { labelKey: 'account:actions.logout', session: 'logout' },
+    ],
+  },
+  {
+    id: 'servers',
+    path: '/servers',
+    titleKey: 'servers:title',
+    actions: [
+      { labelKey: 'servers:actions.list', command: 'server list' },
+      { labelKey: 'servers:actions.add', command: 'server add' },
+      { labelKey: 'servers:actions.get', command: 'server get' },
+      { labelKey: 'servers:actions.installCommand', command: 'server install-command' },
+      { labelKey: 'servers:actions.traffic', command: 'server traffic' },
+      { labelKey: 'servers:actions.connections', command: 'server connections' },
+      { labelKey: 'servers:actions.limitSet', command: 'server limit set' },
+      { labelKey: 'servers:actions.limitClear', command: 'server limit clear' },
+      { labelKey: 'servers:actions.kick', command: 'server kick' },
+      { labelKey: 'servers:actions.restartKernel', command: 'server restart-kernel' },
     ],
   },
   {

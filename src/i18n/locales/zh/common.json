@@ -20,6 +20,7 @@
   "loading": "加载中…",
   "nav": {
     "overview": "总览",
+    "servers": "服务器",
     "tokens": "API 令牌",
     "settings": "系统设置",
     "ops": "运维"

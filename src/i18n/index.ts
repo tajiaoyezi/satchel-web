@@ -12,13 +12,14 @@ import logs from './locales/zh/logs.json'
 import overview from './locales/zh/overview.json'
 import schedule from './locales/zh/schedule.json'
 import security from './locales/zh/security.json'
+import servers from './locales/zh/servers.json'
 import settings from './locales/zh/settings.json'
 import setup from './locales/zh/setup.json'
 import tokens from './locales/zh/tokens.json'
 import update from './locales/zh/update.json'
 
 // 界面文案全部在资源文件里（web-console「文案与 i18n」）：本站只有中文，英文随 M9 补上 en 资源与语言切换。
-export const resources = { zh: { common, login, setup, overview, account, tokens, settings, logs, schedule, jobs, audit, security, backups, database, update } } as const
+export const resources = { zh: { common, login, setup, overview, servers, account, tokens, settings, logs, schedule, jobs, audit, security, backups, database, update } } as const
 
 declare module 'i18next' {
   interface CustomTypeOptions {
