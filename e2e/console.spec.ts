@@ -297,11 +297,13 @@ test('服务器页：添加服务器，取安装命令，对没连上的服务�
   await expect(page.getByTestId('install-command')).not.toBeEmpty()
   await expect(page.getByText('https://panel.e2e.example', { exact: true })).toBeVisible()
 
+  // 连接、限速、踢线三页切走后仍然挂着（hidden），所以限定在可见的「限速」页里找输入框
   await page.getByRole('tab', { name: '限速' }).click()
-  await page.getByLabel('入站').fill('in1')
-  await page.getByLabel('凭据').fill('A')
-  await page.getByLabel('限速（Mbps）').fill('5')
-  await page.getByRole('button', { name: '设置' }).click()
-  await expect(page.getByRole('alert')).toBeVisible()
+  const limit = page.getByRole('tabpanel', { name: '限速' })
+  await limit.getByLabel('入站').fill('in1')
+  await limit.getByLabel('凭据').fill('A')
+  await limit.getByLabel('限速（Mbps）').fill('5')
+  await limit.getByRole('button', { name: '设置' }).click()
+  await expect(limit.getByRole('alert')).toBeVisible()
   await expect(page.getByTestId('limit-result')).toHaveCount(0)
 })

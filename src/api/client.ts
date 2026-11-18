@@ -53,6 +53,7 @@ export interface RunOptions {
   limit?: number
   cursor?: string
   signal?: AbortSignal
+  noStore?: boolean // 回应里有密钥原文（如安装命令里的 token）：GET 带 cache: 'no-store'，不进浏览器的 HTTP 缓存
 }
 
 // routeFor 把命令的路径模板填上位置参数（依次替换 {名字}）。
@@ -90,7 +91,7 @@ async function parseError(res: Response): Promise<ApiError> {
 
 // request 发一次请求：body 是对象时按 JSON 发；成功时回解析好的 JSON，失败时抛 ApiError。会话入口也用它。
 // signal 中止（如超时）时与网络错误一样，是状态 0 的「连不上主控」。
-export async function request<T>(method: string, url: string, body?: unknown, signal?: AbortSignal): Promise<T> {
+export async function request<T>(method: string, url: string, body?: unknown, signal?: AbortSignal, cache?: RequestCache): Promise<T> {
   let res: Response
   try {
     res = await fetch(url, {
@@ -99,6 +100,7 @@ export async function request<T>(method: string, url: string, body?: unknown, si
       headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
       body: body === undefined ? undefined : JSON.stringify(body),
       signal,
+      ...(cache ? { cache } : {}),
     })
   } catch (e) {
     throw new ApiError(0, { code: 'unavailable', reason: e instanceof Error ? e.message : String(e), state: {}, next: '' }, false)
@@ -124,7 +126,7 @@ export function run<T>(name: CommandName, opts: RunOptions = {}): Promise<T> {
   const route = routeFor(name, opts.args)
   if (route.method === 'GET') {
     const page = route.list ? { limit: opts.limit, cursor: opts.cursor } : {}
-    return request<T>('GET', route.url + query(opts.flags, page), undefined, opts.signal)
+    return request<T>('GET', route.url + query(opts.flags, page), undefined, opts.signal, opts.noStore ? 'no-store' : undefined)
   }
   return request<T>('POST', route.url, postBody(opts), opts.signal)
 }

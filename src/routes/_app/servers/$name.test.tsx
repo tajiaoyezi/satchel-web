@@ -51,6 +51,9 @@ const base = (routes: Record<string, FakeReply | ((call: FakeCall) => FakeReply)
 
 const post = (calls: FakeCall[], url: string) => calls.find((c) => c.method === 'POST' && c.url === url)
 
+// panel 是当前可见的标签页：连接、限速、踢线三页切走后仍然挂着（hidden），查询要限定在可见的那一页。
+const panel = () => within(screen.getByRole('tabpanel'))
+
 // web-console「服务器页」的详情部分。
 describe('服务器详情页', () => {
   it('概况：显示状态、地址、心跳与内核，不显示令牌', async () => {
@@ -122,8 +125,8 @@ describe('服务器详情页', () => {
     expect(within(row).getByText('10 MB')).toBeTruthy()
     expect(screen.getByText(/主控重启后从零开始/)).toBeTruthy()
     await user.click(within(row).getByRole('button', { name: '限速' }))
-    expect(await screen.findByLabelText('入站')).toHaveValue('in1')
-    expect(screen.getByLabelText('凭据')).toHaveValue('A')
+    expect(await panel().findByLabelText('入站')).toHaveValue('in1')
+    expect(panel().getByLabelText('凭据')).toHaveValue('A')
   })
 
   it('流量：还没有收到快照时写明', async () => {
@@ -144,8 +147,8 @@ describe('服务器详情页', () => {
     })
     renderApp('/servers/hk-1')
     await user.click(await screen.findByRole('tab', { name: '连接' }))
-    await user.type(screen.getByLabelText('入站'), 'in1')
-    await user.type(screen.getByLabelText('凭据'), 'A')
+    await user.type(panel().getByLabelText('入站'), 'in1')
+    await user.type(panel().getByLabelText('凭据'), 'A')
     await user.click(screen.getByRole('button', { name: '查询' }))
     expect(await screen.findByText('198.51.100.2:443')).toBeTruthy()
     await user.click(screen.getByRole('button', { name: '加载更多' }))
@@ -168,10 +171,10 @@ describe('服务器详情页', () => {
     })
     renderApp('/servers/hk-1')
     await user.click(await screen.findByRole('tab', { name: '限速' }))
-    await user.type(screen.getByLabelText('入站'), 'in1')
-    await user.type(screen.getByLabelText('凭据'), 'A')
-    await user.type(screen.getByLabelText('限速（Mbps）'), '5')
-    await user.type(screen.getByLabelText('有效时长'), '30m')
+    await user.type(panel().getByLabelText('入站'), 'in1')
+    await user.type(panel().getByLabelText('凭据'), 'A')
+    await user.type(panel().getByLabelText('限速（Mbps）'), '5')
+    await user.type(panel().getByLabelText('有效时长'), '30m')
     await user.click(screen.getByRole('button', { name: '设置' }))
     const result = await screen.findByTestId('limit-result')
     expect(post(calls, '/api/v1/server/limit/set/hk-1')?.body).toEqual({ inbound: 'in1', credential: 'A', mbps: 5, 'expires-in': '30m' })
@@ -187,14 +190,121 @@ describe('服务器详情页', () => {
     })
     renderApp('/servers/hk-1')
     await user.click(await screen.findByRole('tab', { name: '限速' }))
-    await user.type(screen.getByLabelText('入站'), 'in1')
-    await user.type(screen.getByLabelText('凭据'), 'A')
-    await user.type(screen.getByLabelText('限速（Mbps）'), '0')
+    await user.type(panel().getByLabelText('入站'), 'in1')
+    await user.type(panel().getByLabelText('凭据'), 'A')
+    await user.type(panel().getByLabelText('限速（Mbps）'), '0')
     await user.click(screen.getByRole('button', { name: '设置' }))
     const result = await screen.findByTestId('limit-result')
     expect(post(calls, '/api/v1/server/limit/set/hk-1')?.body).toEqual({ inbound: 'in1', credential: 'A', mbps: 0 })
     expect(within(result).getByText('不限')).toBeTruthy()
     expect(within(result).getByText('现在不限速')).toBeTruthy()
+  })
+
+  it('切到别的标签页再回来，限速的表单与结果还在', async () => {
+    const user = userEvent.setup()
+    base({
+      'POST /api/v1/server/limit/set/hk-1': { body: { server: 'hk-1', inbound: 'in1', credential: 'A', sources: [{ source: 'master', bps: 5000000, mbps: 5 }], limited: true, effective_bps: 5000000, effective_mbps: 5 } },
+    })
+    renderApp('/servers/hk-1')
+    await user.click(await screen.findByRole('tab', { name: '流量' }))
+    await user.click(within(await screen.findByTestId('traffic-in1-out1-A')).getByRole('button', { name: '限速' }))
+    await user.type(panel().getByLabelText('限速（Mbps）'), '5')
+    await user.click(panel().getByRole('button', { name: '设置' }))
+    expect(await panel().findByTestId('limit-result')).toBeTruthy()
+    await user.click(screen.getByRole('tab', { name: '流量' }))
+    await user.click(screen.getByRole('tab', { name: '限速' }))
+    expect(panel().getByTestId('limit-result')).toBeTruthy()
+    expect(panel().getByLabelText('限速（Mbps）')).toHaveValue(5)
+    expect(panel().getByLabelText('入站')).toHaveValue('in1')
+  })
+
+  it('连接清单切走再回来不重新问节点', async () => {
+    const user = userEvent.setup()
+    const calls = base({ 'GET /api/v1/server/connections/hk-1': { body: { items: [], total: 0, nextCursor: '' } } })
+    renderApp('/servers/hk-1')
+    await user.click(await screen.findByRole('tab', { name: '流量' }))
+    await user.click(within(await screen.findByTestId('traffic-in1-out1-A')).getByRole('button', { name: '连接' }))
+    expect(await panel().findByText('没有活动连接。')).toBeTruthy()
+    await user.click(screen.getByRole('tab', { name: '踢线' }))
+    await user.click(screen.getByRole('tab', { name: '连接' }))
+    expect(panel().getByText('没有活动连接。')).toBeTruthy()
+    expect(calls.filter((c) => c.url.startsWith('/api/v1/server/connections/hk-1'))).toHaveLength(1)
+  })
+
+  it('从流量行点「限速」或「踢线」不会去问节点要连接清单', async () => {
+    const user = userEvent.setup()
+    const calls = base({ 'GET /api/v1/server/connections/hk-1': { body: { items: [], total: 0, nextCursor: '' } } })
+    renderApp('/servers/hk-1')
+    await user.click(await screen.findByRole('tab', { name: '流量' }))
+    await user.click(within(await screen.findByTestId('traffic-in1-out1-A')).getByRole('button', { name: '限速' }))
+    await user.click(screen.getByRole('tab', { name: '流量' }))
+    await user.click(within(await screen.findByTestId('traffic-in1-out1-A')).getByRole('button', { name: '踢线' }))
+    await new Promise((r) => setTimeout(r, 200))
+    expect(calls.filter((c) => c.url.startsWith('/api/v1/server/connections/'))).toHaveLength(0)
+  })
+
+  it('从同一行再点「连接」会重新查，显示新的清单', async () => {
+    const user = userEvent.setup()
+    let n = 0
+    const calls = base({
+      'GET /api/v1/server/connections/hk-1': () => {
+        n++
+        return { body: { items: [{ id: n, network: 'tcp', peer: `peer-${n}`, outbound: 'out1', start: '2026-11-17T10:00:00Z' }], total: 1, nextCursor: '' } }
+      },
+    })
+    renderApp('/servers/hk-1')
+    for (const peer of ['peer-1', 'peer-2']) {
+      await user.click(await screen.findByRole('tab', { name: '流量' }))
+      await user.click(within(await screen.findByTestId('traffic-in1-out1-A')).getByRole('button', { name: '连接' }))
+      expect(await panel().findByText(peer)).toBeTruthy()
+    }
+    expect(calls.filter((c) => c.url.startsWith('/api/v1/server/connections/hk-1'))).toHaveLength(2)
+  })
+
+  it('手动查 A、再查 B、再换回 A：第三次重新查，显示新的清单', async () => {
+    const user = userEvent.setup()
+    let n = 0
+    const calls = base({
+      'GET /api/v1/server/connections/hk-1': (call) => {
+        n++
+        const q = query(call)
+        return { body: { items: [{ id: n, network: 'tcp', peer: `${q.get('inbound')}/${q.get('credential')}#${n}`, outbound: 'out1', start: '2026-11-17T10:00:00Z' }], total: 1, nextCursor: '' } }
+      },
+    })
+    renderApp('/servers/hk-1')
+    await user.click(await screen.findByRole('tab', { name: '连接' }))
+    for (const [inbound, credential, peer] of [
+      ['in1', 'A', 'in1/A#1'],
+      ['in2', 'B', 'in2/B#2'],
+      ['in1', 'A', 'in1/A#3'],
+    ]) {
+      await user.clear(panel().getByLabelText('入站'))
+      await user.type(panel().getByLabelText('入站'), inbound)
+      await user.clear(panel().getByLabelText('凭据'))
+      await user.type(panel().getByLabelText('凭据'), credential)
+      await user.click(panel().getByRole('button', { name: '查询' }))
+      expect(await panel().findByText(peer)).toBeTruthy()
+    }
+    expect(calls.filter((c) => c.url.startsWith('/api/v1/server/connections/hk-1'))).toHaveLength(3)
+  })
+
+  it('从流量行去看连接，不会清掉限速页上的结果', async () => {
+    const user = userEvent.setup()
+    base({
+      'GET /api/v1/server/connections/hk-1': { body: { items: [], total: 0, nextCursor: '' } },
+      'POST /api/v1/server/limit/set/hk-1': { body: { server: 'hk-1', inbound: 'in1', credential: 'A', sources: [{ source: 'master', bps: 5000000, mbps: 5 }], limited: true, effective_bps: 5000000, effective_mbps: 5 } },
+    })
+    renderApp('/servers/hk-1')
+    await user.click(await screen.findByRole('tab', { name: '流量' }))
+    await user.click(within(await screen.findByTestId('traffic-in1-out1-A')).getByRole('button', { name: '限速' }))
+    await user.type(panel().getByLabelText('限速（Mbps）'), '5')
+    await user.click(panel().getByRole('button', { name: '设置' }))
+    expect(await panel().findByTestId('limit-result')).toBeTruthy()
+    await user.click(screen.getByRole('tab', { name: '流量' }))
+    await user.click(within(await screen.findByTestId('traffic-in1-out1-A')).getByRole('button', { name: '连接' }))
+    expect(await panel().findByText('没有活动连接。')).toBeTruthy()
+    await user.click(screen.getByRole('tab', { name: '限速' }))
+    expect(panel().getByTestId('limit-result')).toBeTruthy()
   })
 
   it('撤掉主控临时限速：请求体只有入站与凭据，显示现在不限速', async () => {
@@ -204,8 +314,8 @@ describe('服务器详情页', () => {
     })
     renderApp('/servers/hk-1')
     await user.click(await screen.findByRole('tab', { name: '限速' }))
-    await user.type(screen.getByLabelText('入站'), 'in1')
-    await user.type(screen.getByLabelText('凭据'), 'A')
+    await user.type(panel().getByLabelText('入站'), 'in1')
+    await user.type(panel().getByLabelText('凭据'), 'A')
     await user.click(screen.getByRole('button', { name: '撤掉' }))
     const result = await screen.findByTestId('limit-result')
     expect(post(calls, '/api/v1/server/limit/clear/hk-1')?.body).toEqual({ inbound: 'in1', credential: 'A' })
@@ -222,9 +332,9 @@ describe('服务器详情页', () => {
     renderApp('/servers/hk-1')
     expect(await screen.findByText('离线')).toBeTruthy()
     await user.click(screen.getByRole('tab', { name: '限速' }))
-    await user.type(screen.getByLabelText('入站'), 'in1')
-    await user.type(screen.getByLabelText('凭据'), 'A')
-    await user.type(screen.getByLabelText('限速（Mbps）'), '5')
+    await user.type(panel().getByLabelText('入站'), 'in1')
+    await user.type(panel().getByLabelText('凭据'), 'A')
+    await user.type(panel().getByLabelText('限速（Mbps）'), '5')
     const submit = screen.getByRole('button', { name: '设置' })
     expect(submit).toBeEnabled()
     await user.click(submit)
@@ -237,7 +347,7 @@ describe('服务器详情页', () => {
     const calls = base({ 'POST /api/v1/server/kick/hk-1': { body: { server: 'hk-1', credential: 'A', kicked: 3 } } })
     renderApp('/servers/hk-1')
     await user.click(await screen.findByRole('tab', { name: '踢线' }))
-    await user.type(screen.getByLabelText('凭据'), 'A')
+    await user.type(panel().getByLabelText('凭据'), 'A')
     expect(screen.getByText('没填入站：会踢 A 在所有入站上的连接。')).toBeTruthy()
     await user.click(screen.getByRole('button', { name: '踢线' }))
     expect((await screen.findByTestId('kick-result')).textContent).toBe('踢掉了 3 条连接')

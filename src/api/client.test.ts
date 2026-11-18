@@ -32,6 +32,21 @@ describe('run', () => {
     expect(routeFor('settings update-cdn set', ['false']).url).toBe('/api/v1/settings/update-cdn/set/false')
   })
 
+  it('noStore：GET 带 cache: no-store；不给时不带 cache', async () => {
+    const inits: RequestInit[] = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_url: string, init: RequestInit) => {
+        inits.push(init)
+        return new Response('{}', { status: 200 })
+      }),
+    )
+    await run('server install-command', { args: ['hk-1'], noStore: true })
+    await run('server get', { args: ['hk-1'] })
+    expect(inits[0].cache).toBe('no-store')
+    expect('cache' in inits[1]).toBe(false)
+  })
+
   it('POST：位置参数进路径，flag、confirm 与当场验证进 JSON 体', async () => {
     const calls = mockFetch(200, { id: 3 })
     await run('token update', { args: ['3'], flags: { name: 'ops', danger: ['master'], secrets: true }, verify: { password: 'pw', code: '123456' } })

@@ -81,13 +81,17 @@ interface RestartResult {
 }
 
 type Tab = 'overview' | 'traffic' | 'connections' | 'limit' | 'kick'
+type FormTab = 'connections' | 'limit' | 'kick'
 
-// Target 是从流量表的一行带到连接、限速、踢线三个标签页的入站与凭据；seq 变了表单就按新值重建（design 第 2 条）。
+// Target 是从流量表的一行带到连接、限速、踢线某一页的入站与凭据。三页各有一份：点哪个入口只重建哪一页，
+// 别的页的表单与结果不动；seq 变了那一页就按新值重建（design 第 2 条）。
 interface Target {
   inbound: string
   credential: string
   seq: number
 }
+
+const EMPTY_TARGET: Target = { inbound: '', credential: '', seq: 0 }
 
 const SOURCES = ['static', 'master', 'node_rule'] as const
 
@@ -96,7 +100,8 @@ function ServerPage() {
   const { name } = Route.useParams()
   return (
     <AdminPage title={name}>
-      <ServerDetail name={name} />
+      {/* key：换一台服务器时从头开始，不把上一台的表单、结果与安装命令带过去 */}
+      <ServerDetail key={name} name={name} />
     </AdminPage>
   )
 }
@@ -104,9 +109,9 @@ function ServerPage() {
 function ServerDetail({ name }: { name: string }) {
   const { t } = useTranslation('servers')
   const [tab, setTab] = useState<Tab>('overview')
-  const [target, setTarget] = useState<Target>({ inbound: '', credential: '', seq: 0 })
-  const pick = (next: Tab, row: TrafficTotal) => {
-    setTarget((prev) => ({ inbound: row.inbound, credential: row.credential, seq: prev.seq + 1 }))
+  const [targets, setTargets] = useState<Record<FormTab, Target>>({ connections: EMPTY_TARGET, limit: EMPTY_TARGET, kick: EMPTY_TARGET })
+  const pick = (next: FormTab, row: TrafficTotal) => {
+    setTargets((prev) => ({ ...prev, [next]: { inbound: row.inbound, credential: row.credential, seq: prev[next].seq + 1 } }))
     setTab(next)
   }
   return (
@@ -137,14 +142,15 @@ function ServerDetail({ name }: { name: string }) {
         <TabsContent value="traffic">
           <Traffic name={name} onPick={pick} />
         </TabsContent>
-        <TabsContent value="connections">
-          <Connections key={target.seq} name={name} initial={target} />
+        {/* 连接、限速、踢线三页切走后仍然挂着（只是隐藏），表单与结果留在页面上，回来时也不会重新问节点 */}
+        <TabsContent value="connections" forceMount hidden={tab !== 'connections'}>
+          <Connections key={targets.connections.seq} name={name} initial={targets.connections} />
         </TabsContent>
-        <TabsContent value="limit">
-          <Limit key={target.seq} name={name} initial={target} />
+        <TabsContent value="limit" forceMount hidden={tab !== 'limit'}>
+          <Limit key={targets.limit.seq} name={name} initial={targets.limit} />
         </TabsContent>
-        <TabsContent value="kick">
-          <Kick key={target.seq} name={name} initial={target} />
+        <TabsContent value="kick" forceMount hidden={tab !== 'kick'}>
+          <Kick key={targets.kick.seq} name={name} initial={targets.kick} />
         </TabsContent>
       </Tabs>
     </div>
@@ -207,7 +213,7 @@ function Install({ name }: { name: string }) {
   const [requested, setRequested] = useState(false)
   const install = useQuery({
     queryKey: ['server install-command', name],
-    queryFn: () => run<InstallCommand>('server install-command', { args: [name] }),
+    queryFn: () => run<InstallCommand>('server install-command', { args: [name], noStore: true }),
     enabled: requested,
     gcTime: 0,
   })
@@ -252,7 +258,7 @@ function Install({ name }: { name: string }) {
   )
 }
 
-function Traffic({ name, onPick }: { name: string; onPick: (tab: Tab, row: TrafficTotal) => void }) {
+function Traffic({ name, onPick }: { name: string; onPick: (tab: FormTab, row: TrafficTotal) => void }) {
   const { t } = useTranslation('servers')
   const traffic = useQuery({
     queryKey: ['server traffic', name],
@@ -342,12 +348,15 @@ function Connections({ name, initial }: { name: string; initial: Target }) {
   const [credential, setCredential] = useState(initial.credential)
   const [applied, setApplied] = useState(initial.inbound && initial.credential ? { inbound: initial.inbound, credential: initial.credential } : null)
   const list = useInfiniteQuery({
-    queryKey: ['server connections', name, applied?.inbound, applied?.credential],
+    // seq 在 key 里：每次从流量行点「连接」都是一次新查询，不会显示上一次留下的旧清单
+    queryKey: ['server connections', name, initial.seq, applied?.inbound, applied?.credential],
     queryFn: ({ pageParam }) =>
       run<Page<Connection>>('server connections', { args: [name], flags: { inbound: applied?.inbound, credential: applied?.credential }, limit: 100, cursor: pageParam }),
     initialPageParam: '',
     getNextPageParam: (last) => last.nextCursor || undefined,
     enabled: applied !== null,
+    staleTime: Infinity, // 每页都要问节点：只在「查询」「刷新」「加载更多」时请求，挂载、重连时不自动重新请求
+    gcTime: 0, // 换一组入站与凭据后旧的那份立刻丢掉：换回来时一定重新查，不会显示几分钟前的旧清单
   })
   const items = list.data?.pages.flatMap((p) => p.items) ?? []
   const submit = (e: FormEvent) => {
@@ -550,7 +559,7 @@ function RestartKernel({ name }: { name: string }) {
   return (
     <div className="grid justify-items-end gap-2">
       <Button variant="destructive" size="sm" disabled={restart.isPending} onClick={() => void onRestart()}>
-        {t('restart.button')}
+        {restart.isPending ? t('restart.pending') : t('restart.button')}
       </Button>
       <ErrorNotice error={restart.error} />
       {r && !restart.error && (
