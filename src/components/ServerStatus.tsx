@@ -16,7 +16,16 @@ export interface ServerSummary {
 // ServerObject 是 server get 与 server add 返回的资源对象里页面用到的字段；status 里的三把令牌不读、不显示。
 export interface ServerObject {
   metadata: { id: number }
-  spec: { name: string; connection_mode: string }
+  spec: {
+    name: string
+    connection_mode: string
+    domain: string
+    domain_v6: string
+    listen_port: number
+    pull_address: string
+    pull_address_v6: string
+    pull_port: number
+  }
   status: {
     status: string
     last_heartbeat: string | null
@@ -28,6 +37,12 @@ export interface ServerObject {
     core_version: string
     core_boot_time: string | null
     core_boot_count: number
+    fallback_to_pull: boolean
+    fallback_at: string | null
+    last_pull_at: string | null
+    rotation_pending: boolean
+    revoke_pending: boolean
+    last_rotated_at: string | null
   }
 }
 

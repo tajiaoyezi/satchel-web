@@ -54,6 +54,139 @@ const post = (calls: FakeCall[], url: string) => calls.find((c) => c.method === 
 // panel 是当前可见的标签页：连接、限速、踢线三页切走后仍然挂着（hidden），查询要限定在可见的那一页。
 const panel = () => within(screen.getByRole('tabpanel'))
 
+
+const tokenView = (n: number) => ({ body: { server: 'hk-1', token: `tok-${n}`, agent_token: `agent-${n}`, pull_token: `pull-${n}`, rotation_pending: false, last_rotated_at: null, revoke_pending: false } })
+
+// m2-08：概况里的寻址与轮询降级、凭据页。
+describe('服务器详情页：寻址与凭据', () => {
+  it('概况里的寻址与轮询降级：端口为 0 写默认端口，auto 模式显示降级', async () => {
+    base({
+      'GET /api/v1/server/get/hk-1': {
+        body: {
+          ...server,
+          spec: { ...server.spec, connection_mode: 'auto', domain: 'node.example.com', domain_v6: '', listen_port: 0, pull_address: '203.0.113.9', pull_address_v6: '', pull_port: 24000 },
+          status: { ...server.status, fallback_to_pull: true, fallback_at: '2026-11-18T01:00:00Z', last_pull_at: '2026-11-18T01:05:00Z' },
+        },
+      },
+    })
+    renderApp('/servers/hk-1')
+    expect(await screen.findByText('node.example.com')).toBeTruthy()
+    expect(screen.getByText('默认（23889）')).toBeTruthy()
+    expect(screen.getByText('203.0.113.9')).toBeTruthy()
+    expect(screen.getByText('24000')).toBeTruthy()
+    expect(screen.getByText(/^已降级为轮询（自 /)).toBeTruthy()
+    expect(screen.getByText('最近一次轮询')).toBeTruthy()
+  })
+
+  it('websocket 模式不显示寻址参数、轮询降级与最近一次轮询', async () => {
+    base()
+    renderApp('/servers/hk-1')
+    await screen.findByText('203.0.113.7')
+    expect(screen.queryByText('轮询降级')).toBeNull()
+    expect(screen.queryByText('最近一次轮询')).toBeNull()
+    expect(screen.queryByText('管理端口')).toBeNull()
+    expect(screen.queryByText(/^默认（/)).toBeNull()
+  })
+
+  it('pull 模式只显示最近一次轮询，不显示轮询降级', async () => {
+    base({ 'GET /api/v1/server/get/hk-1': { body: { ...server, spec: { ...server.spec, connection_mode: 'pull' }, status: { ...server.status, last_pull_at: '2026-11-18T01:05:00Z' } } } })
+    renderApp('/servers/hk-1')
+    expect(await screen.findByText('最近一次轮询')).toBeTruthy()
+    expect(screen.queryByText('轮询降级')).toBeNull()
+  })
+
+  it('查看凭据原文：点了才请求，不进 HTTP 缓存，复制的是原文', async () => {
+    const user = userEvent.setup()
+    const calls = base({ 'GET /api/v1/server/token/show/hk-1': tokenView(1) })
+    renderApp('/servers/hk-1')
+    await user.click(await screen.findByRole('tab', { name: '凭据' }))
+    expect(await screen.findByText('轮换待节点确认')).toBeTruthy()
+    expect(calls.some((c) => c.url.includes('/token/show/'))).toBe(false)
+    await user.click(screen.getByRole('button', { name: '查看原文' }))
+    expect((await screen.findByTestId('token-token')).textContent).toBe('tok-1')
+    expect(screen.getByTestId('token-agent_token').textContent).toBe('agent-1')
+    expect(screen.getByTestId('token-pull_token').textContent).toBe('pull-1')
+    expect(calls.find((c) => c.url === '/api/v1/server/token/show/hk-1')?.cache).toBe('no-store')
+    await user.click(screen.getByRole('button', { name: '复制 token' }))
+    await waitFor(async () => expect(await navigator.clipboard.readText()).toBe('tok-1'))
+  })
+
+  it('切走凭据页后原文不再显示，也不再请求', async () => {
+    const user = userEvent.setup()
+    const calls = base({ 'GET /api/v1/server/token/show/hk-1': tokenView(1) })
+    renderApp('/servers/hk-1')
+    await user.click(await screen.findByRole('tab', { name: '凭据' }))
+    await user.click(await screen.findByRole('button', { name: '查看原文' }))
+    expect(await screen.findByTestId('token-token')).toBeTruthy()
+    await user.click(screen.getByRole('tab', { name: '概况' }))
+    await user.click(screen.getByRole('tab', { name: '凭据' }))
+    await screen.findByRole('button', { name: '查看原文' })
+    expect(screen.queryByTestId('token-token')).toBeNull()
+    expect(document.body.textContent).not.toContain('tok-1')
+    expect(calls.filter((c) => c.url.includes('/token/show/'))).toHaveLength(1)
+  })
+
+  it('缺密钥读取：显示主控的 reason 与 next', async () => {
+    const user = userEvent.setup()
+    base({ 'GET /api/v1/server/token/show/hk-1': fail(403, 'forbidden', '查看服务器凭据原文需要密钥读取（secrets）权限范围', '在主控本机执行 sudo satchel server token show <名字>') })
+    renderApp('/servers/hk-1')
+    await user.click(await screen.findByRole('tab', { name: '凭据' }))
+    await user.click(await screen.findByRole('button', { name: '查看原文' }))
+    expect(await screen.findByText('查看服务器凭据原文需要密钥读取（secrets）权限范围')).toBeTruthy()
+    expect(screen.getByText(/^下一步：在主控本机执行/)).toBeTruthy()
+  })
+
+  it('轮换要确认服务器名：取消不发请求；确认后带 which 与 confirm，成功后重新读取概况', async () => {
+    const user = userEvent.setup()
+    const calls = base({ 'POST /api/v1/server/token/rotate/hk-1': { body: server } })
+    renderApp('/servers/hk-1')
+    await user.click(await screen.findByRole('tab', { name: '凭据' }))
+    await user.click(await screen.findByRole('combobox', { name: '轮换或吊销的范围' }))
+    await user.click(await screen.findByRole('option', { name: 'agent_token（主控调节点管理端口）' }))
+    await user.click(screen.getByRole('button', { name: '轮换' }))
+    expect(await screen.findByText('要确认的值：hk-1')).toBeTruthy()
+    expect(screen.getByText(/要求节点在线/)).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: '取消' }))
+    await waitFor(() => expect(screen.queryByText('要确认的值：hk-1')).toBeNull())
+    expect(post(calls, '/api/v1/server/token/rotate/hk-1')).toBeUndefined()
+    const before = calls.filter((c) => c.url === '/api/v1/server/get/hk-1').length
+    await user.click(screen.getByRole('button', { name: '轮换' }))
+    await user.click(await screen.findByRole('button', { name: '确认' }))
+    await waitFor(() => expect(post(calls, '/api/v1/server/token/rotate/hk-1')?.body).toEqual({ which: 'agent', confirm: 'hk-1' }))
+    await waitFor(() => expect(calls.filter((c) => c.url === '/api/v1/server/get/hk-1').length).toBeGreaterThan(before))
+  })
+
+  it('节点不在线时轮换：显示主控的 reason 与 next', async () => {
+    const user = userEvent.setup()
+    base({ 'POST /api/v1/server/token/rotate/hk-1': fail(503, 'unavailable', '服务器 "hk-1" 现在没有连接', '用 server get hk-1 看在线状态，等它连上再试') })
+    renderApp('/servers/hk-1')
+    await user.click(await screen.findByRole('tab', { name: '凭据' }))
+    await user.click(await screen.findByRole('button', { name: '轮换' }))
+    await user.click(await screen.findByRole('button', { name: '确认' }))
+    expect(await screen.findByText('服务器 "hk-1" 现在没有连接')).toBeTruthy()
+    expect(screen.getByText('下一步：用 server get hk-1 看在线状态，等它连上再试')).toBeTruthy()
+  })
+
+  it('吊销：确认框写明要重装；请求带 which all 与 confirm；成功后重新取正在显示的原文', async () => {
+    const user = userEvent.setup()
+    let n = 0
+    const calls = base({
+      'GET /api/v1/server/token/show/hk-1': () => tokenView(++n),
+      'POST /api/v1/server/token/revoke/hk-1': { body: { ...server, status: { ...server.status, revoke_pending: true } } },
+    })
+    renderApp('/servers/hk-1')
+    await user.click(await screen.findByRole('tab', { name: '凭据' }))
+    await user.click(await screen.findByRole('button', { name: '查看原文' }))
+    expect((await screen.findByTestId('token-token')).textContent).toBe('tok-1')
+    await user.click(screen.getByRole('button', { name: '吊销' }))
+    expect(await screen.findByText(/要用新的安装命令重装/)).toBeTruthy()
+    expect(screen.getByText(/只吊销 agent_token/)).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: '确认' }))
+    await waitFor(() => expect(post(calls, '/api/v1/server/token/revoke/hk-1')?.body).toEqual({ which: 'all', confirm: 'hk-1' }))
+    await waitFor(() => expect(screen.getByTestId('token-token').textContent).toBe('tok-2'))
+  })
+})
+
 // web-console「服务器页」的详情部分。
 describe('服务器详情页', () => {
   it('概况：显示状态、地址、心跳与内核，不显示令牌', async () => {

@@ -14,6 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { formatTime } from '@/lib/format'
 
 export const Route = createFileRoute('/_app/servers/')({ component: ServersPage })
@@ -104,14 +105,37 @@ function ServerCard({ server: s }: { server: ServerSummary }) {
   )
 }
 
-// AddServerDialog 只填名字：连接模式由主控用默认值（design 第 6 条），名字的规则由主控判定。
+// MODES 是 server add 的四种连接模式（m2-06）；ADDR 是非 websocket 模式下可选的六个寻址参数（flag 名），分管理入口与轮询两组。
+const MODES = ['auto', 'websocket', 'http', 'pull'] as const
+type Mode = (typeof MODES)[number]
+const ADDR_GROUPS = [
+  { key: 'manage', fields: ['domain', 'domain-v6', 'listen-port'] },
+  { key: 'pull', fields: ['pull-address', 'pull-address-v6', 'pull-port'] },
+] as const
+type AddrField = (typeof ADDR_GROUPS)[number]['fields'][number]
+const PORTS: ReadonlySet<AddrField> = new Set(['listen-port', 'pull-port'])
+const EMPTY_ADDR: Record<AddrField, string> = { domain: '', 'domain-v6': '', 'listen-port': '', 'pull-address': '', 'pull-address-v6': '', 'pull-port': '' }
+
+// AddServerDialog：名字、连接模式，非 websocket 时加六个可选的寻址参数（design 第 1、2 条）。每种模式要哪些参数由主控判定，
+// 这里只把填了的发出去：去掉首尾空格，空的不发，端口按数字发。
 function AddServerDialog({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation('servers')
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [name, setName] = useState('')
+  const [mode, setMode] = useState<Mode>('auto')
+  const [addr, setAddr] = useState(EMPTY_ADDR)
+  const flags = () => {
+    const f: Record<string, string | number> = { mode }
+    if (mode === 'websocket') return f
+    for (const [k, v] of Object.entries(addr) as [AddrField, string][]) {
+      const value = v.trim()
+      if (value) f[k] = PORTS.has(k) ? Number(value) : value
+    }
+    return f
+  }
   const add = useMutation({
-    mutationFn: () => run<ServerObject>('server add', { args: [name.trim()] }),
+    mutationFn: () => run<ServerObject>('server add', { args: [name.trim()], flags: flags() }),
     onSuccess: async (res) => {
       await queryClient.invalidateQueries({ queryKey: ['server list'] })
       await navigate({ to: '/servers/$name', params: { name: res.spec?.name || name.trim() } })
@@ -123,7 +147,7 @@ function AddServerDialog({ onClose }: { onClose: () => void }) {
   }
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent>
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
         <form className="grid gap-4" onSubmit={submit}>
           <DialogHeader>
             <DialogTitle>{t('add.title')}</DialogTitle>
@@ -133,6 +157,42 @@ function AddServerDialog({ onClose }: { onClose: () => void }) {
             <Label htmlFor="server-name">{t('add.name')}</Label>
             <Input id="server-name" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
           </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="server-mode">{t('add.mode')}</Label>
+            <Select value={mode} onValueChange={(v) => setMode(v as Mode)}>
+              <SelectTrigger id="server-mode" aria-label={t('add.mode')} className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {MODES.map((m) => (
+                  <SelectItem key={m} value={m}>
+                    {m}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-muted-foreground text-sm">{t(`add.modes.${mode}`)}</p>
+          </div>
+          {mode !== 'websocket' &&
+            ADDR_GROUPS.map((g) => (
+              <fieldset key={g.key} className="grid gap-3 rounded-md border p-3">
+                <legend className="px-1 text-sm font-medium">{t(`add.groups.${g.key}`)}</legend>
+                <p className="text-muted-foreground text-sm">{t(`add.groupHints.${g.key}`)}</p>
+                {g.fields.map((f) => (
+                  <div key={f} className="grid gap-1.5">
+                    <Label htmlFor={`server-${f}`}>{t(`add.fields.${f}`)}</Label>
+                    <Input
+                      id={`server-${f}`}
+                      type={PORTS.has(f) ? 'number' : 'text'}
+                      inputMode={PORTS.has(f) ? 'numeric' : undefined}
+                      placeholder={PORTS.has(f) ? t(`add.portHints.${f as 'listen-port' | 'pull-port'}`) : undefined}
+                      value={addr[f]}
+                      onChange={(e) => setAddr((prev) => ({ ...prev, [f]: e.target.value }))}
+                    />
+                  </div>
+                ))}
+              </fieldset>
+            ))}
           <ErrorNotice error={add.error} />
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>

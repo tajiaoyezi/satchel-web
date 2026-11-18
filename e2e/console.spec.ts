@@ -265,21 +265,32 @@ test('封禁并解封一个 IP：安全事件里多了两条', async () => {
   await expect(events.filter({ hasText: '解封' })).toHaveCount(1)
 })
 
-// 服务器页（m2-07）：这里没有真的节点，只走不需要节点的路径。连接模式、安装命令的内容与错误原文由主控决定，不断言。
+// 服务器页（m2-07、m2-08）：这里没有真的节点，只走不需要节点的路径。安装命令的内容与错误原文由主控决定，不断言。
 // 放在最后：设主控地址会改设置。
-test('服务器页：添加服务器，取安装命令，对没连上的服务器设限速看到错误', async () => {
+test('服务器页：以 pull 模式添加服务器，总览里看到它，取安装命令，设限速看到错误，查看、吊销与轮换凭据', async () => {
   await page.getByRole('link', { name: '服务器' }).click()
   await page.getByRole('button', { name: '添加服务器' }).click()
   const form = page.getByRole('dialog', { name: '添加服务器' })
   await form.getByLabel('名字').fill('e2e-node')
+  await form.getByRole('combobox', { name: '连接模式' }).click()
+  await page.getByRole('option', { name: 'pull' }).click()
+  await form.getByLabel('轮询地址（IPv4 或主机名）').fill('203.0.113.9')
   await form.getByRole('button', { name: '添加' }).click()
   await expect(page).toHaveURL(/\/servers\/e2e-node$/)
   await expect(page.getByRole('heading', { name: 'e2e-node' })).toBeVisible()
   await expect(page.getByText('等待首次连接')).toBeVisible()
+  await expect(page.getByText('pull', { exact: true })).toBeVisible()
+  await expect(page.getByText('203.0.113.9', { exact: true })).toBeVisible()
 
   await page.getByRole('link', { name: '服务器列表' }).click()
   await expect(page.getByTestId('server-e2e-node')).toContainText('等待首次连接')
-  await page.getByTestId('server-e2e-node').click()
+
+  // 总览首页的服务器分区列出它，点名字进详情页
+  await page.getByRole('link', { name: '总览', exact: true }).click()
+  const partition = page.getByTestId('partition-servers')
+  await expect(partition.getByText('等待首次连接')).toBeVisible()
+  await partition.getByRole('link', { name: 'e2e-node', exact: true }).click()
+  await expect(page).toHaveURL(/\/servers\/e2e-node$/)
 
   // 主控地址没设：显示主控的错误
   await page.getByRole('button', { name: '取安装命令' }).click()
@@ -306,4 +317,19 @@ test('服务器页：添加服务器，取安装命令，对没连上的服务�
   await limit.getByRole('button', { name: '设置' }).click()
   await expect(limit.getByRole('alert')).toBeVisible()
   await expect(page.getByTestId('limit-result')).toHaveCount(0)
+
+  // 凭据：查看原文；吊销（不要求节点在线）后 token 变了；轮换要求节点在线，这里看到主控的错误
+  await page.getByRole('tab', { name: '凭据' }).click()
+  const creds = page.getByRole('tabpanel', { name: '凭据' })
+  await creds.getByRole('button', { name: '查看原文' }).click()
+  const token = creds.getByTestId('token-token')
+  await expect(token).not.toBeEmpty()
+  const before = (await token.textContent()) ?? ''
+  await creds.getByRole('button', { name: '吊销' }).click()
+  await page.getByRole('alertdialog').getByRole('button', { name: '确认' }).click()
+  await expect(token).not.toHaveText(before)
+  await expect(token).not.toBeEmpty()
+  await creds.getByRole('button', { name: '轮换' }).click()
+  await page.getByRole('alertdialog').getByRole('button', { name: '确认' }).click()
+  await expect(creds.getByRole('alert')).toBeVisible()
 })

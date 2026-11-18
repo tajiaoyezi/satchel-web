@@ -10,5 +10,12 @@
     "tasks": "待办"
   },
   "comesWith": "这一块随 {{milestone}} 出现",
+  "servers": {
+    "empty": "还没有服务器。",
+    "add": "去服务器页添加",
+    "adminOnly": "服务器只对管理员显示。",
+    "viewAll": "查看全部 {{count}} 台",
+    "noAddress": "无地址"
+  },
   "total": "共 {{count}} 条"
 }

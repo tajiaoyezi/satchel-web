@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { copyText } from '@/lib/clipboard'
@@ -80,7 +81,7 @@ interface RestartResult {
   inbounds: string[]
 }
 
-type Tab = 'overview' | 'traffic' | 'connections' | 'limit' | 'kick'
+type Tab = 'overview' | 'credentials' | 'traffic' | 'connections' | 'limit' | 'kick'
 type FormTab = 'connections' | 'limit' | 'kick'
 
 // Target 是从流量表的一行带到连接、限速、踢线某一页的入站与凭据。三页各有一份：点哪个入口只重建哪一页，
@@ -130,6 +131,7 @@ function ServerDetail({ name }: { name: string }) {
       <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
         <TabsList>
           <TabsTrigger value="overview">{t('detail.tabs.overview')}</TabsTrigger>
+          <TabsTrigger value="credentials">{t('detail.tabs.credentials')}</TabsTrigger>
           <TabsTrigger value="traffic">{t('detail.tabs.traffic')}</TabsTrigger>
           <TabsTrigger value="connections">{t('detail.tabs.connections')}</TabsTrigger>
           <TabsTrigger value="limit">{t('detail.tabs.limit')}</TabsTrigger>
@@ -138,6 +140,10 @@ function ServerDetail({ name }: { name: string }) {
         <TabsContent value="overview" className="grid gap-4">
           <Overview name={name} />
           <Install name={name} />
+        </TabsContent>
+        {/* 凭据页不保留挂载：切走就卸载，原文跟着消失（m2-08 design 第 3 条） */}
+        <TabsContent value="credentials">
+          <Credentials name={name} />
         </TabsContent>
         <TabsContent value="traffic">
           <Traffic name={name} onPick={pick} />
@@ -171,15 +177,28 @@ function Fields({ rows }: { rows: [string, ReactNode][] }) {
   )
 }
 
+// serverQuery 是概况与凭据页共用的 server get（同一个 key，只请求一次）。
+const serverQuery = (name: string) => ({
+  queryKey: ['server get', name],
+  queryFn: () => run<ServerObject>('server get', { args: [name] }),
+  refetchInterval: REFRESH_MS,
+})
+
+// DEFAULT_PORTS 是端口为 0 时主控用的默认端口（m2-06：管理口 23889，轮询口 23890）。
+const DEFAULT_PORTS = { listen: 23889, pull: 23890 } as const
+
 function Overview({ name }: { name: string }) {
   const { t } = useTranslation('servers')
-  const server = useQuery({
-    queryKey: ['server get', name],
-    queryFn: () => run<ServerObject>('server get', { args: [name] }),
-    refetchInterval: REFRESH_MS,
-  })
+  const server = useQuery(serverQuery(name))
   const none = t('fields.none')
   const s = server.data?.status
+  const spec = server.data?.spec
+  const port = (v: number | undefined, fallback: number) => (v ? String(v) : t('fields.defaultPort', { port: fallback }))
+  // websocket 模式下节点不开任何端口，寻址那一组用不上，不显示（与添加对话框一致）。
+  // 只有 auto 会降级为轮询；最近一次轮询对 auto 与 pull 都有意义（pull 本来就一直在轮询）。
+  const addressed = spec !== undefined && spec.connection_mode !== 'websocket'
+  const auto = spec?.connection_mode === 'auto'
+  const polling = auto || spec?.connection_mode === 'pull'
   return (
     <Card className="shadow-flat">
       <CardContent className="grid gap-3">
@@ -198,9 +217,149 @@ function Overview({ name }: { name: string }) {
               [t('fields.coreVersion'), s.core_version || none],
               [t('fields.coreBootTime'), s.core_boot_time ? formatTime(s.core_boot_time) : none],
               [t('fields.coreBootCount'), s.core_boot_count],
+              ...(addressed
+                ? ([
+                    [t('add.fields.domain'), <span className="font-mono">{spec?.domain || none}</span>],
+                    [t('add.fields.domain-v6'), <span className="font-mono">{spec?.domain_v6 || none}</span>],
+                    [t('add.fields.listen-port'), port(spec?.listen_port, DEFAULT_PORTS.listen)],
+                    [t('add.fields.pull-address'), <span className="font-mono">{spec?.pull_address || none}</span>],
+                    [t('add.fields.pull-address-v6'), <span className="font-mono">{spec?.pull_address_v6 || none}</span>],
+                    [t('add.fields.pull-port'), port(spec?.pull_port, DEFAULT_PORTS.pull)],
+                  ] as [string, ReactNode][])
+                : []),
+              ...(auto
+                ? ([[t('fields.fallback'), s.fallback_to_pull ? t('fields.fallbackYes', { time: s.fallback_at ? formatTime(s.fallback_at) : none }) : t('fields.fallbackNo')]] as [string, ReactNode][])
+                : []),
+              ...(polling ? ([[t('fields.lastPullAt'), s.last_pull_at ? formatTime(s.last_pull_at) : none]] as [string, ReactNode][]) : []),
             ]}
           />
         )}
+      </CardContent>
+    </Card>
+  )
+}
+
+// TOKEN_SCOPES 是轮换与吊销的范围；值是命令的 which（m2-06：all、token、agent、pull）。
+const TOKEN_SCOPES = ['all', 'token', 'agent', 'pull'] as const
+type TokenScope = (typeof TOKEN_SCOPES)[number]
+
+interface TokenView {
+  server: string
+  token: string
+  agent_token: string
+  pull_token: string
+}
+
+const TOKEN_FIELDS = ['token', 'agent_token', 'pull_token'] as const
+
+// Credentials 是凭据页（m2-08 design 第 3–5 条）：状态来自 server get；原文照安装命令的写法，点了才取、不缓存、
+// 不进 HTTP 缓存；轮换与吊销都是危险类「权限」，确认值是服务器名，成功后让概况与原文的查询失效。
+function Credentials({ name }: { name: string }) {
+  const { t } = useTranslation('servers')
+  const dialogs = useDialogs()
+  const queryClient = useQueryClient()
+  const server = useQuery(serverQuery(name))
+  const [requested, setRequested] = useState(false)
+  const [scope, setScope] = useState<TokenScope>('all')
+  const tokens = useQuery({
+    queryKey: ['server token show', name],
+    queryFn: () => run<TokenView>('server token show', { args: [name], noStore: true }),
+    enabled: requested,
+    gcTime: 0,
+  })
+  const change = useMutation({
+    // 命令名要写成字面量：构建时的清单扫描只认静态字符串
+    mutationFn: (action: 'rotate' | 'revoke') => {
+      const opts = { args: [name], flags: { which: scope }, confirm: name }
+      return action === 'rotate' ? run<ServerObject>('server token rotate', opts) : run<ServerObject>('server token revoke', opts)
+    },
+    onSuccess: async (_res, action) => {
+      await Promise.all([queryClient.invalidateQueries({ queryKey: ['server get', name] }), queryClient.invalidateQueries({ queryKey: ['server token show', name] })])
+      toast.success(t(action === 'rotate' ? 'credentials.rotated' : 'credentials.revoked'))
+    },
+  })
+  const onChange = async (action: 'rotate' | 'revoke') => {
+    const scopeLabel = t(`credentials.scopes.${scope}`)
+    const ok = await dialogs.confirm({
+      title: t(action === 'rotate' ? 'credentials.rotateConfirmTitle' : 'credentials.revokeConfirmTitle', { name, scope: scopeLabel }),
+      description: t(action === 'rotate' ? 'credentials.rotateConfirmDescription' : 'credentials.revokeConfirmDescription'),
+      value: name,
+      destructive: true,
+    })
+    if (ok) change.mutate(action)
+  }
+  const copy = async (text: string) => {
+    if (await copyText(text)) toast.success(t('actions.copied', { ns: 'common' }))
+    else toast.error(t('actions.copyFailed', { ns: 'common' }))
+  }
+  const s = server.data?.status
+  const yesNo = (v: boolean | undefined) => (v ? t('credentials.yes') : t('credentials.no'))
+  return (
+    <Card className="shadow-flat">
+      <CardHeader>
+        <CardDescription>{t('credentials.description')}</CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-4">
+        <ErrorNotice error={server.error} />
+        {s && (
+          <Fields
+            rows={[
+              [t('credentials.rotationPending'), yesNo(s.rotation_pending)],
+              [t('credentials.revokePending'), yesNo(s.revoke_pending)],
+              [t('credentials.lastRotatedAt'), s.last_rotated_at ? formatTime(s.last_rotated_at) : t('fields.none')],
+            ]}
+          />
+        )}
+        <div className="grid gap-2">
+          <div>
+            <Button variant="outline" disabled={tokens.isFetching} onClick={() => (requested ? void tokens.refetch() : setRequested(true))}>
+              {t('credentials.show')}
+            </Button>
+          </div>
+          <p className="text-muted-foreground text-sm">{t('credentials.showHint')}</p>
+          <ErrorNotice error={tokens.error} />
+          {requested && tokens.data && !tokens.error && (
+            <dl className="grid gap-2 text-sm" data-testid="token-values">
+              {TOKEN_FIELDS.map((f) => (
+                <div key={f} className="grid gap-1">
+                  <dt className="text-muted-foreground font-mono">{f}</dt>
+                  <dd className="flex items-center gap-2">
+                    <code className="bg-muted rounded px-2 py-1 font-mono text-xs break-all" data-testid={`token-${f}`}>
+                      {tokens.data[f]}
+                    </code>
+                    <Button size="sm" variant="outline" aria-label={t('credentials.copy', { field: f })} onClick={() => void copy(tokens.data[f])}>
+                      {t('actions.copy', { ns: 'common' })}
+                    </Button>
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          )}
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="token-scope">{t('credentials.scope')}</Label>
+          <div className="flex flex-wrap items-center gap-2">
+            <Select value={scope} onValueChange={(v) => setScope(v as TokenScope)}>
+              <SelectTrigger id="token-scope" aria-label={t('credentials.scope')} className="w-72">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {TOKEN_SCOPES.map((sc) => (
+                  <SelectItem key={sc} value={sc}>
+                    {t(`credentials.scopes.${sc}`)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button variant="outline" disabled={change.isPending} onClick={() => void onChange('rotate')}>
+              {t('credentials.rotate')}
+            </Button>
+            <Button variant="destructive" disabled={change.isPending} onClick={() => void onChange('revoke')}>
+              {t('credentials.revoke')}
+            </Button>
+          </div>
+          <ErrorNotice error={change.error} />
+        </div>
       </CardContent>
     </Card>
   )

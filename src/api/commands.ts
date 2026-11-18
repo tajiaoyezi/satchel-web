@@ -64,6 +64,9 @@ export const commands = {
   'server limit clear': { method: 'POST', path: '/api/v1/server/limit/clear/{name}' },
   'server kick': { method: 'POST', path: '/api/v1/server/kick/{name}' },
   'server restart-kernel': { method: 'POST', path: '/api/v1/server/restart-kernel/{name}' },
+  'server token show': { method: 'GET', path: '/api/v1/server/token/show/{name}' },
+  'server token rotate': { method: 'POST', path: '/api/v1/server/token/rotate/{name}' },
+  'server token revoke': { method: 'POST', path: '/api/v1/server/token/revoke/{name}' },
 } as const satisfies Record<string, CommandRoute>
 
 export type CommandName = keyof typeof commands

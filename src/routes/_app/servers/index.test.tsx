@@ -86,8 +86,51 @@ describe('服务器列表页', () => {
     await user.click(within(dialog).getByRole('button', { name: '添加' }))
     await waitFor(() => expect(router.state.location.pathname).toBe('/servers/hk-1'))
     const add = calls.find((c: FakeCall) => c.method === 'POST' && c.url === '/api/v1/server/add/hk-1')
-    expect(add?.body).toEqual({})
+    expect(add?.body).toEqual({ mode: 'auto' })
     expect(await screen.findByRole('heading', { name: 'hk-1' })).toBeTruthy()
+  })
+
+  it('pull 模式填轮询地址：只发填了的参数，端口按数字发', async () => {
+    const user = userEvent.setup()
+    const calls = opsServer({
+      'GET /api/v1/server': page([]),
+      'POST /api/v1/server/add/hk-2': { body: serverObject('hk-2') },
+      'GET /api/v1/server/get/hk-2': { body: serverObject('hk-2') },
+    })
+    const { router } = renderApp('/servers')
+    await user.click(await screen.findByRole('button', { name: '添加服务器' }))
+    const dialog = await screen.findByRole('dialog')
+    await user.type(within(dialog).getByLabelText('名字'), 'hk-2')
+    await user.click(within(dialog).getByRole('combobox', { name: '连接模式' }))
+    await user.click(await screen.findByRole('option', { name: 'pull' }))
+    expect(within(dialog).getByText(/至少要填一个地址/)).toBeTruthy()
+    await user.type(within(dialog).getByLabelText('轮询地址（IPv4 或主机名）'), ' 203.0.113.9 ')
+    await user.type(within(dialog).getByLabelText('轮询端口'), '24000')
+    await user.click(within(dialog).getByRole('button', { name: '添加' }))
+    await waitFor(() => expect(router.state.location.pathname).toBe('/servers/hk-2'))
+    expect(calls.find((c: FakeCall) => c.method === 'POST' && c.url === '/api/v1/server/add/hk-2')?.body).toEqual({ mode: 'pull', 'pull-address': '203.0.113.9', 'pull-port': 24000 })
+  })
+
+  it('websocket 模式不显示寻址参数，请求体只有 mode', async () => {
+    const user = userEvent.setup()
+    const calls = opsServer({
+      'GET /api/v1/server': page([]),
+      'POST /api/v1/server/add/hk-3': { body: serverObject('hk-3') },
+      'GET /api/v1/server/get/hk-3': { body: serverObject('hk-3') },
+    })
+    renderApp('/servers')
+    await user.click(await screen.findByRole('button', { name: '添加服务器' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByLabelText('管理端口')).toBeTruthy() // auto 下有寻址参数
+    await user.type(within(dialog).getByLabelText('管理入口域名或 IPv4'), 'node.example.com') // 切到 websocket 后不应当发出去
+    await user.type(within(dialog).getByLabelText('名字'), 'hk-3')
+    await user.click(within(dialog).getByRole('combobox', { name: '连接模式' }))
+    await user.click(await screen.findByRole('option', { name: 'websocket' }))
+    expect(within(dialog).queryByLabelText('管理端口')).toBeNull()
+    expect(within(dialog).queryByLabelText('轮询地址（IPv4 或主机名）')).toBeNull()
+    await user.click(within(dialog).getByRole('button', { name: '添加' }))
+    await waitFor(() => expect(calls.some((c: FakeCall) => c.url === '/api/v1/server/add/hk-3')).toBe(true))
+    expect(calls.find((c: FakeCall) => c.url === '/api/v1/server/add/hk-3')?.body).toEqual({ mode: 'websocket' })
   })
 
   it('名字不合规：对话框里显示主控的 reason，留在列表页', async () => {

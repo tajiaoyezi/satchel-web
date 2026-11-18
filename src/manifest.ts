@@ -73,6 +73,9 @@ export const pages: PageDef[] = [
       { labelKey: 'servers:actions.limitClear', command: 'server limit clear' },
       { labelKey: 'servers:actions.kick', command: 'server kick' },
       { labelKey: 'servers:actions.restartKernel', command: 'server restart-kernel' },
+      { labelKey: 'servers:actions.tokenShow', command: 'server token show' },
+      { labelKey: 'servers:actions.tokenRotate', command: 'server token rotate' },
+      { labelKey: 'servers:actions.tokenRevoke', command: 'server token revoke' },
     ],
   },
   {

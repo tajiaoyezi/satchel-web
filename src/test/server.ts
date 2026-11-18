@@ -10,6 +10,7 @@ export interface FakeCall {
   method: string
   url: string
   body?: unknown
+  cache?: RequestCache // 请求的 cache 选项（如 no-store）；没给时不记
 }
 
 export function fakeServer(routes: Record<string, FakeReply | ((call: FakeCall) => FakeReply)>) {
@@ -17,7 +18,7 @@ export function fakeServer(routes: Record<string, FakeReply | ((call: FakeCall) 
   vi.stubGlobal(
     'fetch',
     vi.fn(async (url: string, init: RequestInit = {}) => {
-      const call: FakeCall = { method: init.method ?? 'GET', url, body: init.body ? JSON.parse(String(init.body)) : undefined }
+      const call: FakeCall = { method: init.method ?? 'GET', url, body: init.body ? JSON.parse(String(init.body)) : undefined, ...(init.cache ? { cache: init.cache } : {}) }
       calls.push(call)
       const key = `${call.method} ${url.split('?')[0]}`
       const route = routes[key]

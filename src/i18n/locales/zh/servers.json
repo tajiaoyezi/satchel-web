@@ -10,7 +10,10 @@
     "limitSet": "设临时限速",
     "limitClear": "撤临时限速",
     "kick": "踢线",
-    "restartKernel": "重启内核"
+    "restartKernel": "重启内核",
+    "tokenShow": "查看凭据原文",
+    "tokenRotate": "轮换凭据",
+    "tokenRevoke": "吊销凭据"
   },
   "statuses": {
     "pending": "等待首次连接",
@@ -33,7 +36,12 @@
     "none": "无",
     "noHeartbeat": "还没有心跳",
     "running": "运行中",
-    "notRunning": "没在跑"
+    "notRunning": "没在跑",
+    "defaultPort": "默认（{{port}}）",
+    "fallback": "轮询降级",
+    "fallbackYes": "已降级为轮询（自 {{time}}）",
+    "fallbackNo": "没有降级",
+    "lastPullAt": "最近一次轮询"
   },
   "list": {
     "online": "在线 {{count}}",
@@ -45,19 +53,73 @@
   },
   "add": {
     "title": "添加服务器",
-    "description": "建好之后在详情页取安装命令，到节点上执行。连接模式用主控的默认值。",
+    "description": "建好之后在详情页取安装命令，到节点上执行。建了以后，名字、连接模式与寻址参数暂时都改不了。",
     "name": "名字",
+    "mode": "连接模式",
+    "modes": {
+      "auto": "默认。先用 websocket；连不上时改用 HTTP，并每 60 秒试一次升回 websocket；还不行时改由主控到节点的轮询端口取数据。",
+      "websocket": "节点主动连主控，节点上不开任何端口，也不降级。",
+      "http": "节点经加密的 HTTP 把心跳与流量发给主控，主控经节点的管理端口下发操作。",
+      "pull": "主控定时到节点的只读轮询端口取心跳与流量，管理操作经节点的管理端口。至少要填一个地址。"
+    },
+    "groups": {
+      "manage": "管理入口",
+      "pull": "轮询"
+    },
+    "groupHints": {
+      "manage": "主控反向连节点的管理端口时用。不填地址就用节点上报的地址。",
+      "pull": "主控到节点的只读轮询端口取数据时用。"
+    },
+    "fields": {
+      "domain": "管理入口域名或 IPv4",
+      "domain-v6": "管理入口 IPv6 域名",
+      "listen-port": "管理端口",
+      "pull-address": "轮询地址（IPv4 或主机名）",
+      "pull-address-v6": "轮询 IPv6 地址",
+      "pull-port": "轮询端口"
+    },
+    "portHints": {
+      "listen-port": "不填用默认 23889",
+      "pull-port": "不填用默认 23890"
+    },
     "submit": "添加"
   },
   "detail": {
     "back": "服务器列表",
     "tabs": {
       "overview": "概况",
+      "credentials": "凭据",
       "traffic": "流量",
       "connections": "连接",
       "limit": "限速",
       "kick": "踢线"
     }
+  },
+  "credentials": {
+    "description": "节点与主控之间用三把凭据：token 是节点连主控用的，agent_token 是主控调节点管理端口用的，pull_token 是主控到节点的只读轮询端口取数据用的。",
+    "rotationPending": "轮换待节点确认",
+    "revokePending": "吊销后等节点用新凭据重新连上",
+    "lastRotatedAt": "最近一次轮换",
+    "yes": "是",
+    "no": "否",
+    "show": "查看原文",
+    "showHint": "原文只在点了之后显示，离开这一页就不再显示，也不留在浏览器的缓存里。",
+    "copy": "复制 {{field}}",
+    "scope": "轮换或吊销的范围",
+    "scopes": {
+      "all": "全部三把",
+      "token": "token（节点连主控）",
+      "agent": "agent_token（主控调节点管理端口）",
+      "pull": "pull_token（主控取轮询数据）"
+    },
+    "rotate": "轮换",
+    "revoke": "吊销",
+    "rotateConfirmTitle": "轮换 {{name}} 的凭据：{{scope}}",
+    "rotateConfirmDescription": "要求节点在线：新凭据会推给节点并写进它的配置文件，不用重装。等节点确认期间新旧凭据都能用，节点确认后旧凭据立刻失效；节点迟迟不确认时，「轮换待节点确认」会一直显示「是」。节点不在线时主控会拒绝，凭据不变。",
+    "revokeConfirmTitle": "吊销 {{name}} 的凭据：{{scope}}",
+    "revokeConfirmDescription": "立刻作废旧凭据，不把新凭据推给节点。吊销 token（或全部）会马上断开节点，节点要用新的安装命令重装后才能连回。只吊销 agent_token：节点不走 websocket 时（http、pull 模式，或 auto 已降级），限速、踢线、重启内核等管理操作都会失败，轮换也救不回来，只能重装。只吊销 pull_token：pull 模式下主控取不到数据，节点会显示离线；管理端口还通时可以再轮换修回来。",
+    "rotated": "已轮换",
+    "revoked": "已吊销"
   },
   "install": {
     "title": "安装命令",
