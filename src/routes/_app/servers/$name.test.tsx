@@ -201,6 +201,16 @@ describe('服务器详情页', () => {
     expect(document.body.textContent).not.toContain('***')
   })
 
+  it('概况：与主控同机按 same_host_as_master 写是或否', async () => {
+    base({ 'GET /api/v1/server/get/hk-1': { body: { ...server, status: { ...server.status, same_host_as_master: true } } } })
+    const { unmount } = renderApp('/servers/hk-1')
+    expect((await screen.findByText('与主控同机')).nextElementSibling?.textContent).toBe('是')
+    unmount()
+    base()
+    renderApp('/servers/hk-1')
+    expect((await screen.findByText('与主控同机')).nextElementSibling?.textContent).toBe('否')
+  })
+
   it('服务器不存在：显示主控的 not_found', async () => {
     opsServer({ 'GET /api/v1/server/get/nope': fail(404, 'not_found', '没有服务器 "nope"') })
     renderApp('/servers/nope')

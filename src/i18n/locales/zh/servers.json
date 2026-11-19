@@ -13,7 +13,13 @@
     "restartKernel": "重启内核",
     "tokenShow": "查看凭据原文",
     "tokenRotate": "轮换凭据",
-    "tokenRevoke": "吊销凭据"
+    "tokenRevoke": "吊销凭据",
+    "updateCheck": "检查节点版本",
+    "updateApply": "升级节点",
+    "updateBatch": "批量升级节点",
+    "uninstall": "卸载节点",
+    "switchPorts": "切换节点端口",
+    "probeMaster": "探测主控地址"
   },
   "statuses": {
     "pending": "等待首次连接",
@@ -41,7 +47,10 @@
     "fallback": "轮询降级",
     "fallbackYes": "已降级为轮询（自 {{time}}）",
     "fallbackNo": "没有降级",
-    "lastPullAt": "最近一次轮询"
+    "lastPullAt": "最近一次轮询",
+    "sameHost": "与主控同机",
+    "sameHostYes": "是",
+    "sameHostNo": "否"
   },
   "list": {
     "online": "在线 {{count}}",
@@ -92,7 +101,8 @@
       "traffic": "流量",
       "connections": "连接",
       "limit": "限速",
-      "kick": "踢线"
+      "kick": "踢线",
+      "maintenance": "维护"
     }
   },
   "credentials": {
@@ -195,5 +205,101 @@
     "confirmDescription": "节点会重新读 kernel.json，在同一个进程里重启内核。已有连接会断开，流量计数与限速来源保留。",
     "done": "内核已重启",
     "startedAt": "启动时间"
+  },
+  "update": {
+    "title": "节点版本",
+    "description": "检查 satchel-agent 在所选渠道的最新版本。检查时主控会去更新 CDN 或 GitHub 查发布，并问一次节点。",
+    "channel": "更新渠道",
+    "channels": {
+      "stable": "稳定版（stable）",
+      "prerelease": "预发布版（prerelease）"
+    },
+    "check": "检查",
+    "current": "当前版本",
+    "latest": "最新版本",
+    "unknownVersion": "节点没有上报",
+    "inDocker": "在 Docker 里",
+    "reachable": "节点可达",
+    "compatible": "与当前主控兼容",
+    "canApply": "能不能升级",
+    "canApplyYes": "能",
+    "canApplyNo": "不能：{{reason}}",
+    "yes": "是",
+    "no": "否",
+    "apply": "升级到 {{version}}",
+    "applyConfirmTitle": "把 {{name}} 的 satchel-agent 升级到 {{version}}",
+    "applyConfirmDescription": "节点会下载新版本并验签，试跑通过后替换程序，原地重启 satchel-agent，期间会短暂断开。主控等它连回来并核对版本，等不到就算失败。",
+    "done": "已从 {{from}} 升到 {{to}}",
+    "disk": {
+      "old": "节点上还是旧版本，程序没有换。",
+      "old_after_swap": "换过程序之后，节点仍然报告旧版本。",
+      "new_unconfirmed": "新版本可能已经写进节点，但主控没有确认它在运行。"
+    },
+    "retryable": "可以直接重试。",
+    "notRetryable": "不要直接重试：先到节点上确认 satchel-agent 的版本与运行状态。"
+  },
+  "batch": {
+    "open": "批量升级",
+    "title": "批量升级 satchel-agent",
+    "description": "先检查全部服务器，只能勾选能升级的。所选的服务器逐台升级；某一台出现主控不能确认的失败时，后面的不再升级。",
+    "checkAll": "检查全部",
+    "select": "选择 {{name}}",
+    "apply": "升级所选的 {{count}} 台到 {{version}}",
+    "confirmTitle": "批量升级 {{count}} 台服务器到 {{version}}",
+    "confirmDescription": "每台节点会下载新版本、验签并原地重启 satchel-agent，期间短暂断开。要确认的值是所选的台数。",
+    "closeHint": "关掉这个对话框不会取消升级，可以到「长任务」页查看。",
+    "server": "服务器",
+    "result": "结果",
+    "version": "版本",
+    "fromTo": "{{from}} → {{to}}",
+    "reason": "原因",
+    "disk": "磁盘状态",
+    "statuses": {
+      "done": "成功",
+      "failed": "失败",
+      "aborted": "中止",
+      "skipped": "跳过"
+    },
+    "diskShort": {
+      "old": "仍是旧版本",
+      "old_after_swap": "换过但仍报旧版本",
+      "new_unconfirmed": "新版本未确认"
+    },
+    "summary": "成功 {{succeeded}} 台，失败 {{failed}} 台，中止 {{aborted}} 台",
+    "comma": "不能批量：名字里有逗号，批量升级会被主控拆开，请到详情页单独升级"
+  },
+  "probe": {
+    "title": "探测主控地址",
+    "description": "让节点用它记下的主控公钥，对主控地址或恢复地址做一次真实的握手，看节点能不能连上。不改任何东西。",
+    "target": "探测哪个地址",
+    "targets": {
+      "master": "主控地址",
+      "recovery": "恢复地址"
+    },
+    "run": "探测",
+    "url": "探测的地址",
+    "result": "结果",
+    "reachable": "可达，延迟 {{ms}} 毫秒",
+    "unreachable": "不可达",
+    "error": "错误"
+  },
+  "ports": {
+    "title": "切换端口",
+    "description": "节点在进程里换到新端口，不重启内核，也不断开已有的代理连接。不填的端口不变。",
+    "listen": "管理端口",
+    "pull": "轮询端口",
+    "current": "当前 {{port}}",
+    "submit": "切换",
+    "confirmTitle": "切换 {{name}} 的端口",
+    "confirmDescription": "节点会立刻改用新端口，主控之后也连新端口。防火墙或安全组要先放行新端口，否则主控会连不上节点。",
+    "done": "端口已切换"
+  },
+  "uninstall": {
+    "title": "卸载",
+    "description": "删掉节点上的 satchel-agent。服务器记录保留，标为离线。",
+    "button": "卸载",
+    "confirmTitle": "卸载 {{name}} 上的 satchel-agent",
+    "confirmDescription": "会删掉节点上的 satchel-agent 程序、服务与配置和状态目录，节点上的代理随之停止。主控里的服务器记录保留，并标为离线。Docker 里的节点不能这样卸载，要停掉并删掉容器。要连回来，得用安装命令重装。",
+    "done": "已安排卸载（{{time}}），服务器已标为离线。"
   }
 }

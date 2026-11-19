@@ -32,6 +32,12 @@ describe('run', () => {
     expect(routeFor('settings update-cdn set', ['false']).url).toBe('/api/v1/settings/update-cdn/set/false')
   })
 
+  it('可选的位置参数没给时，路径去掉这一段', () => {
+    expect(routeFor('server update check').url).toBe('/api/v1/server/update/check')
+    expect(routeFor('server update check', ['hk-1']).url).toBe('/api/v1/server/update/check/hk-1')
+    expect(routeFor('server update apply', ['hk 1', '0.2.0']).url).toBe('/api/v1/server/update/apply/hk%201/0.2.0')
+  })
+
   it('noStore：GET 带 cache: no-store；不给时不带 cache', async () => {
     const inits: RequestInit[] = []
     vi.stubGlobal(

@@ -142,6 +142,19 @@ describe('JobProgress', () => {
     expect(screen.getByText('失败')).toBeTruthy()
   })
 
+  it('失败的 job：给了 renderFailed 时把四字段错误交给它，没给时只显示 reason', async () => {
+    const output = JSON.stringify({ code: 'conflict', reason: '升级失败', state: { disk_state: 'old' }, next: '' })
+    replies([{ status: 'failed', output }])
+    const { unmount } = render(<JobProgress accepted={accepted} renderFailed={(e) => <p>磁盘：{String(e.body.state.disk_state)}</p>} />)
+    expect(await screen.findByText('磁盘：old', {}, { timeout: 3000 })).toBeTruthy()
+    expect(screen.getByText('升级失败')).toBeTruthy()
+    unmount()
+    replies([{ status: 'failed', output }])
+    render(<JobProgress accepted={accepted} />)
+    expect(await screen.findByText('升级失败', {}, { timeout: 3000 })).toBeTruthy()
+    expect(screen.queryByText(/磁盘：/)).toBeNull()
+  })
+
   it('进行中显示认得的进度字段，认不出的按 JSON', async () => {
     replies([{ status: 'running', progress: { phase: 'copying', tables_done: 3, tables_total: 20, table: 'users', extra: 1 } }])
     render(<JobProgress accepted={accepted} />)

@@ -56,11 +56,15 @@ export interface RunOptions {
   noStore?: boolean // 回应里有密钥原文（如安装命令里的 token）：GET 带 cache: 'no-store'，不进浏览器的 HTTP 缓存
 }
 
-// routeFor 把命令的路径模板填上位置参数（依次替换 {名字}）。
+// routeFor 把命令的路径模板填上位置参数（依次替换 {名字}）。没给的参数（可选参数，只会在末尾）连同前面的 / 一起去掉，
+// 与主控 REST 对可选参数的登记一致：server update check 不带名字时是 /api/v1/server/update/check。
 export function routeFor(name: CommandName, args: string[] = []): CommandRoute & { url: string } {
   const route: CommandRoute = commands[name]
   let i = 0
-  const url = route.path.replace(/\{[^}]+\}/g, () => encodeURIComponent(args[i++] ?? ''))
+  const url = route.path.replace(/\/\{[^}]+\}/g, () => {
+    const arg = args[i++]
+    return arg === undefined ? '' : `/${encodeURIComponent(arg)}`
+  })
   return { ...route, url }
 }
 

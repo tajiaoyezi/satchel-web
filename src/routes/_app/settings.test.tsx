@@ -243,3 +243,130 @@ describe('系统设置页', () => {
     expect(await screen.findByRole('link', { name: '新名称' })).toBeTruthy()
   })
 })
+
+const migrateNode = (server: string, state: string, patch: object = {}) => ({ server, state, same_host_as_master: false, ...patch })
+
+// web-console「系统设置页」的迁移主控地址（m2-10）。
+describe('迁移主控地址', () => {
+  async function fillAndVerify(button: '预检' | '迁移') {
+    const user = userEvent.setup()
+    await user.type(await screen.findByLabelText('新的主控地址（https://）'), 'https://new.example.com')
+    await user.click(screen.getByRole('button', { name: button }))
+    await user.type(await screen.findByLabelText('密码'), 'secret12')
+    await user.click(screen.getByRole('button', { name: '确认' }))
+    return user
+  }
+  const migrateCalls = (calls: FakeCall[]) => calls.filter((c) => c.url === '/api/v1/settings/master-url/migrate')
+
+  it('当场验证取消时不发请求', async () => {
+    const calls = server()
+    renderApp('/settings')
+    const user = userEvent.setup()
+    await user.type(await screen.findByLabelText('新的主控地址（https://）'), 'https://new.example.com')
+    await user.click(screen.getByRole('button', { name: '预检' }))
+    await screen.findByLabelText('密码')
+    await user.click(screen.getByRole('button', { name: '取消' }))
+    await waitFor(() => expect(screen.queryByLabelText('密码')).toBeNull())
+    expect(migrateCalls(calls)).toHaveLength(0)
+  })
+
+  it('预检：请求带 url、preview 与当场验证，不带 resource-version；逐台列出节点，写明离线节点会被跳过', async () => {
+    const calls = server({
+      'POST /api/v1/settings/master-url/migrate': {
+        body: {
+          preview: true,
+          master_url: 'https://new.example.com',
+          turnstile_cleared: true,
+          can_migrate: true,
+          ready: 1,
+          unreachable: 0,
+          offline: 1,
+          skipped_offline: ['jp-2'],
+          nodes: [migrateNode('hk-1', 'ready', { latency_ms: 20 }), migrateNode('jp-2', 'offline', { pending: true, error: '服务器 "jp-2" 现在没有连接' })],
+        },
+      },
+    })
+    renderApp('/settings')
+    await fillAndVerify('预检')
+    await waitFor(() => expect(migrateCalls(calls)[0]?.body).toEqual({ url: 'https://new.example.com', preview: true, 'verify-password': 'secret12' }))
+    const result = await screen.findByTestId('migrate-result')
+    expect(result.textContent).toContain('预检通过，可以迁移。')
+    expect(result.textContent).toContain('迁移时会清空 Turnstile 的两个 key。')
+    expect(result.textContent).toContain('跳过的离线节点：jp-2。')
+    expect(screen.getByTestId('migrate-node-hk-1').textContent).toContain('就绪')
+    expect(screen.getByTestId('migrate-node-hk-1').textContent).toContain('20 毫秒')
+    expect(screen.getByTestId('migrate-node-jp-2').textContent).toContain('离线')
+  })
+
+  it('订阅域名与两个勾选：填了、勾了才发对应的 flag', async () => {
+    const calls = server({
+      'POST /api/v1/settings/master-url/migrate': {
+        body: { preview: true, master_url: 'https://new.example.com', turnstile_cleared: true, can_migrate: true, ready: 0, unreachable: 0, offline: 0, nodes: [] },
+      },
+    })
+    renderApp('/settings')
+    const user = userEvent.setup()
+    await user.type(await screen.findByLabelText('订阅域名（可选，不填就不改）'), 'https://sub.example.com')
+    await user.click(screen.getByRole('checkbox', { name: /^主机没变也清空 Turnstile/ }))
+    await user.click(screen.getByRole('checkbox', { name: /^跳过当前离线的节点/ }))
+    await fillAndVerify('预检')
+    await waitFor(() =>
+      expect(migrateCalls(calls)[0]?.body).toEqual({
+        url: 'https://new.example.com',
+        'subscription-url': 'https://sub.example.com',
+        'change-domain': true,
+        'skip-unreachable': true,
+        preview: true,
+        'verify-password': 'secret12',
+      }),
+    )
+  })
+
+  it('迁移被节点挡住：显示 reason 与 next，并列出挡住的节点与错误', async () => {
+    server({
+      'POST /api/v1/settings/master-url/migrate': {
+        status: 409,
+        body: {
+          code: 'conflict',
+          reason: '主控地址迁移被 1 台阻塞节点中止：hk-1',
+          state: { blocking: [migrateNode('hk-1', 'unreachable', { error: '节点握手候选地址失败' })], nodes: [] },
+          next: '修复节点到候选地址的连通性',
+        },
+      },
+    })
+    renderApp('/settings')
+    await fillAndVerify('迁移')
+    expect(await screen.findByText('主控地址迁移被 1 台阻塞节点中止：hk-1')).toBeTruthy()
+    expect(screen.getByText('下一步：修复节点到候选地址的连通性')).toBeTruthy()
+    const blocking = screen.getByTestId('migrate-blocking')
+    expect(blocking.textContent).toContain('hk-1')
+    expect(blocking.textContent).toContain('不可达')
+    expect(blocking.textContent).toContain('节点握手候选地址失败')
+  })
+
+  it('迁移成功：请求带 url、resource-version 与当场验证；写明已清空 Turnstile；主控地址分区显示新地址', async () => {
+    const calls = server({
+      'POST /api/v1/settings/master-url/migrate': {
+        body: {
+          preview: false,
+          master_url: 'https://new.example.com',
+          turnstile_cleared: true,
+          can_migrate: true,
+          ready: 1,
+          unreachable: 0,
+          offline: 0,
+          pushed: ['hk-1'],
+          nodes: [migrateNode('hk-1', 'ready', { latency_ms: 20 })],
+          settings: settings(5, { status: { master_url: 'https://new.example.com', turnstile_site_key: '', turnstile_secret_key: '' } }),
+        },
+      },
+    })
+    renderApp('/settings')
+    await fillAndVerify('迁移')
+    await waitFor(() => expect(migrateCalls(calls)[0]?.body).toEqual({ url: 'https://new.example.com', 'resource-version': 4, 'verify-password': 'secret12' }))
+    const result = await screen.findByTestId('migrate-result')
+    expect(result.textContent).toContain('已迁移到 https://new.example.com，新地址已推给 1 台在线节点。')
+    expect(result.textContent).toContain('已清空 Turnstile 的两个 key，请为新域名重新填写。')
+    await waitFor(() => expect(screen.getByLabelText('主控地址')).toHaveValue('https://new.example.com'))
+  })
+})

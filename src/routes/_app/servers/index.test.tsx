@@ -148,3 +148,132 @@ describe('服务器列表页', () => {
     expect(router.state.location.pathname).toBe('/servers')
   })
 })
+
+const item = (server: string, patch: object = {}) => ({
+  server,
+  channel: 'stable',
+  current_version: '0.1.0',
+  latest_version: '0.2.0',
+  has_update: true,
+  in_docker: false,
+  reachable: true,
+  compatible: true,
+  can_apply: true,
+  ...patch,
+})
+
+const checkAll = {
+  body: {
+    channel: 'stable',
+    latest_version: '0.2.0',
+    total: 3,
+    items: [item('hk-1'), item('jp-2'), item('us-3', { in_docker: true, can_apply: false, reason: 'Docker 容器内不支持自更新，请更换镜像 tag 后重建容器' })],
+  },
+}
+
+const batchJob = (patch: object = {}) => ({
+  body: { job_id: 'job-b', kind: 'server update batch', status: 'queued', created_at: '2026-11-18T10:00:00Z', started_at: null, finished_at: null, exit_code: null, output: null, output_truncated: false, ...patch },
+})
+
+async function openBatch(routes: Parameters<typeof opsServer>[0]) {
+  const calls = opsServer({ 'GET /api/v1/server': page([summary('hk-1', 'connected')]), 'GET /api/v1/server/update/check': checkAll, ...routes })
+  const user = userEvent.setup()
+  renderApp('/servers')
+  await user.click(await screen.findByRole('button', { name: '批量升级' }))
+  const dialog = within(await screen.findByRole('dialog'))
+  await user.click(dialog.getByRole('button', { name: '检查全部' }))
+  await dialog.findByTestId('batch-check')
+  return { calls, user, dialog }
+}
+
+// web-console「服务器页」的批量升级（m2-10）。
+describe('服务器列表页：批量升级', () => {
+  it('检查全部不带名字；能升级的默认勾上，不能升级的不能勾并写原因；确认值是台数，请求带 servers、channel 与 confirm', async () => {
+    const { calls, user, dialog } = await openBatch({ 'POST /api/v1/server/update/batch/0.2.0': batchJob(), 'GET /api/v1/job/get/job-b': batchJob({ status: 'running' }) })
+    const checkCall = calls.find((c) => c.url.startsWith('/api/v1/server/update/check'))!
+    expect(checkCall.url.split('?')[0]).toBe('/api/v1/server/update/check')
+    expect(query(checkCall).get('channel')).toBe('stable')
+    expect(dialog.getByRole('checkbox', { name: '选择 hk-1' }).getAttribute('data-state')).toBe('checked')
+    expect(dialog.getByRole('checkbox', { name: '选择 jp-2' }).getAttribute('data-state')).toBe('checked')
+    expect(dialog.getByRole('checkbox', { name: '选择 us-3' }).hasAttribute('disabled')).toBe(true)
+    expect(dialog.getByText('不能：Docker 容器内不支持自更新，请更换镜像 tag 后重建容器')).toBeTruthy()
+    await user.click(dialog.getByRole('button', { name: '升级所选的 2 台到 0.2.0' }))
+    expect(await screen.findByText('要确认的值：2')).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: '确认' }))
+    await waitFor(() =>
+      expect(calls.find((c) => c.method === 'POST' && c.url === '/api/v1/server/update/batch/0.2.0')?.body).toEqual({ servers: 'hk-1,jp-2', channel: 'stable', confirm: '2' }),
+    )
+    expect(await dialog.findByText(/关掉这个对话框不会取消升级/)).toBeTruthy()
+  })
+
+  it('一台都不勾时「升级所选」不可用；取消勾选会改变台数', async () => {
+    const { user, dialog } = await openBatch({})
+    await user.click(dialog.getByRole('checkbox', { name: '选择 jp-2' }))
+    expect(dialog.getByRole('button', { name: '升级所选的 1 台到 0.2.0' })).toBeTruthy()
+    await user.click(dialog.getByRole('checkbox', { name: '选择 hk-1' }))
+    expect(dialog.getByRole('button', { name: '升级所选的 0 台到 0.2.0' }).hasAttribute('disabled')).toBe(true)
+  })
+
+  it('批量升级成功：逐台列出结果与汇总', async () => {
+    const output = JSON.stringify({
+      version: '0.2.0',
+      channel: 'stable',
+      total: 2,
+      succeeded: 2,
+      failed: 0,
+      aborted: 0,
+      results: [
+        { server: 'hk-1', from_version: '0.1.0', to_version: '0.2.0', status: 'done' },
+        { server: 'jp-2', from_version: '0.1.0', to_version: '0.2.0', status: 'done' },
+      ],
+    })
+    const { user, dialog } = await openBatch({ 'POST /api/v1/server/update/batch/0.2.0': batchJob(), 'GET /api/v1/job/get/job-b': batchJob({ status: 'done', output }) })
+    await user.click(dialog.getByRole('button', { name: '升级所选的 2 台到 0.2.0' }))
+    await user.click(await screen.findByRole('button', { name: '确认' }))
+    expect(await dialog.findByText('成功 2 台，失败 0 台，中止 0 台', {}, { timeout: 4000 })).toBeTruthy()
+    expect(within(dialog.getByTestId('update-result-hk-1')).getByText('成功')).toBeTruthy()
+    expect(within(dialog.getByTestId('update-result-jp-2')).getByText('0.1.0 → 0.2.0')).toBeTruthy()
+  })
+
+  it('名字带逗号的服务器不能勾进批量升级，写明原因', async () => {
+    const { dialog } = await openBatch({
+      'GET /api/v1/server/update/check': { body: { channel: 'stable', latest_version: '0.2.0', total: 2, items: [item('hk-1'), item('a,b')] } },
+    })
+    const comma = dialog.getByRole('checkbox', { name: '选择 a,b' })
+    expect(comma.hasAttribute('disabled')).toBe(true)
+    expect(comma.getAttribute('data-state')).toBe('unchecked')
+    expect(dialog.getByText(/名字里有逗号/)).toBeTruthy()
+    expect(dialog.getByRole('button', { name: '升级所选的 1 台到 0.2.0' })).toBeTruthy()
+  })
+
+  it('批量升级中途中止：显示 reason，逐台列出失败与中止的原因和磁盘状态', async () => {
+    const output = JSON.stringify({
+      code: 'conflict',
+      reason: '节点 hk-1 出现高危确认失败，已中止后续 1 台（成功 0 台）',
+      state: {
+        version: '0.2.0',
+        total: 2,
+        succeeded: 0,
+        failed: 1,
+        aborted: 1,
+        results: [
+          { server: 'hk-1', from_version: '0.1.0', to_version: '0.2.0', status: 'failed', disk_state: 'new_unconfirmed', retryable: false, reason: '节点替换后未在确认窗内恢复' },
+          { server: 'jp-2', from_version: '0.1.0', to_version: '0.2.0', status: 'aborted', reason: '前面节点 hk-1 出现高危确认失败（new_unconfirmed），批量升级已中止' },
+        ],
+      },
+      next: '',
+    })
+    const { user, dialog } = await openBatch({ 'POST /api/v1/server/update/batch/0.2.0': batchJob(), 'GET /api/v1/job/get/job-b': batchJob({ status: 'failed', output }) })
+    await user.click(dialog.getByRole('button', { name: '升级所选的 2 台到 0.2.0' }))
+    await user.click(await screen.findByRole('button', { name: '确认' }))
+    expect(await dialog.findByText('节点 hk-1 出现高危确认失败，已中止后续 1 台（成功 0 台）', {}, { timeout: 4000 })).toBeTruthy()
+    const hk = within(dialog.getByTestId('update-result-hk-1'))
+    expect(hk.getByText('失败')).toBeTruthy()
+    expect(hk.getByText('节点替换后未在确认窗内恢复')).toBeTruthy()
+    expect(hk.getByText('新版本未确认')).toBeTruthy()
+    const jp = within(dialog.getByTestId('update-result-jp-2'))
+    expect(jp.getByText('中止')).toBeTruthy()
+    expect(jp.getByText(/批量升级已中止/)).toBeTruthy()
+    expect(dialog.getByText('成功 0 台，失败 1 台，中止 1 台')).toBeTruthy()
+  })
+})

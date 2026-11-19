@@ -22,10 +22,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { copyText } from '@/lib/clipboard'
 import { formatBytes, formatTime } from '@/lib/format'
 
-export const Route = createFileRoute('/_app/servers/$name')({ component: ServerPage })
+import { Maintenance } from './-maintenance'
+import { DEFAULT_PORTS, Fields, REFRESH_MS, serverQuery } from './-shared'
 
-// 概况与流量的自动刷新间隔（design 第 3 条）；连接清单不自动刷新。
-const REFRESH_MS = 10_000
+export const Route = createFileRoute('/_app/servers/$name')({ component: ServerPage })
 
 interface InstallCommand {
   server: string
@@ -81,7 +81,7 @@ interface RestartResult {
   inbounds: string[]
 }
 
-type Tab = 'overview' | 'credentials' | 'traffic' | 'connections' | 'limit' | 'kick'
+type Tab = 'overview' | 'credentials' | 'traffic' | 'connections' | 'limit' | 'kick' | 'maintenance'
 type FormTab = 'connections' | 'limit' | 'kick'
 
 // Target 是从流量表的一行带到连接、限速、踢线某一页的入站与凭据。三页各有一份：点哪个入口只重建哪一页，
@@ -136,6 +136,7 @@ function ServerDetail({ name }: { name: string }) {
           <TabsTrigger value="connections">{t('detail.tabs.connections')}</TabsTrigger>
           <TabsTrigger value="limit">{t('detail.tabs.limit')}</TabsTrigger>
           <TabsTrigger value="kick">{t('detail.tabs.kick')}</TabsTrigger>
+          <TabsTrigger value="maintenance">{t('detail.tabs.maintenance')}</TabsTrigger>
         </TabsList>
         <TabsContent value="overview" className="grid gap-4">
           <Overview name={name} />
@@ -158,34 +159,14 @@ function ServerDetail({ name }: { name: string }) {
         <TabsContent value="kick" forceMount hidden={tab !== 'kick'}>
           <Kick key={targets.kick.seq} name={name} initial={targets.kick} />
         </TabsContent>
+        {/* 维护页也保留挂载：升级是长任务，切走再回来进度与结果还在（m2-10 design 第 1 条） */}
+        <TabsContent value="maintenance" forceMount hidden={tab !== 'maintenance'}>
+          <Maintenance name={name} />
+        </TabsContent>
       </Tabs>
     </div>
   )
 }
-
-// Fields 是两列的「名称 值」表。
-function Fields({ rows }: { rows: [string, ReactNode][] }) {
-  return (
-    <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-sm">
-      {rows.map(([label, value]) => (
-        <div key={label} className="contents">
-          <dt className="text-muted-foreground">{label}</dt>
-          <dd className="break-all">{value}</dd>
-        </div>
-      ))}
-    </dl>
-  )
-}
-
-// serverQuery 是概况与凭据页共用的 server get（同一个 key，只请求一次）。
-const serverQuery = (name: string) => ({
-  queryKey: ['server get', name],
-  queryFn: () => run<ServerObject>('server get', { args: [name] }),
-  refetchInterval: REFRESH_MS,
-})
-
-// DEFAULT_PORTS 是端口为 0 时主控用的默认端口（m2-06：管理口 23889，轮询口 23890）。
-const DEFAULT_PORTS = { listen: 23889, pull: 23890 } as const
 
 function Overview({ name }: { name: string }) {
   const { t } = useTranslation('servers')
@@ -217,6 +198,7 @@ function Overview({ name }: { name: string }) {
               [t('fields.coreVersion'), s.core_version || none],
               [t('fields.coreBootTime'), s.core_boot_time ? formatTime(s.core_boot_time) : none],
               [t('fields.coreBootCount'), s.core_boot_count],
+              [t('fields.sameHost'), s.same_host_as_master ? t('fields.sameHostYes') : t('fields.sameHostNo')],
               ...(addressed
                 ? ([
                     [t('add.fields.domain'), <span className="font-mono">{spec?.domain || none}</span>],

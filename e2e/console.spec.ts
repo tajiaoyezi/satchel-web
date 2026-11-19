@@ -6,7 +6,7 @@ import { Secret, TOTP } from 'otpauth'
 
 // 端到端测试（web-console「网页的测试」）：对一个空库的主控按顺序跑向导、两步验证、两步登录、令牌新建与吊销、
 // 改品牌后的登录页、Turnstile 测试配置与登录，然后是运维：上传 logo、日志、定时任务、生成与下载备份、长任务与审计、
-// 封禁与解封，最后是服务器页。恢复备份、数据库迁移与升级会让主控退出（这里没有服务管理器把它拉起来），不在这里跑。
+// 封禁与解封，然后是服务器页，最后是维护页与主控地址迁移（迁移会改主控地址并清空 Turnstile 的 key，必须是最后一步）。恢复备份、数据库迁移与升级会让主控退出（这里没有服务管理器把它拉起来），不在这里跑。
 // 各步共用一个浏览器页面与账号，所以串行。每一步结束时核对页面上没有 CSP 违规（securitypolicyviolation）与未处理的脚本错误（pageerror）。
 
 const admin = { username: 'admin', password: 'e2e-pass-1234' }
@@ -332,4 +332,33 @@ test('服务器页：以 pull 模式添加服务器，总览里看到它，取�
   await creds.getByRole('button', { name: '轮换' }).click()
   await page.getByRole('alertdialog').getByRole('button', { name: '确认' }).click()
   await expect(creds.getByRole('alert')).toBeVisible()
+})
+
+// 主控地址迁移会改主控地址并清空 Turnstile 的 key：这一条必须是整套测试的最后一步，以后加的测试放在它前面。
+test('维护页：探测主控地址与卸载看到错误；系统设置页预检并迁移主控地址', async () => {
+  // 节点没有连上：探测与卸载都由主控回错误
+  await page.goto('/servers/e2e-node')
+  await page.getByRole('tab', { name: '维护' }).click()
+  const maint = page.getByRole('tabpanel', { name: '维护' })
+  await maint.getByRole('button', { name: '探测' }).click()
+  await expect(maint.getByRole('alert')).toHaveCount(1)
+  await expect(maint.getByTestId('probe-result')).toHaveCount(0)
+  await maint.getByRole('button', { name: '卸载' }).click()
+  await page.getByRole('alertdialog').getByRole('button', { name: '确认' }).click()
+  await expect(maint.getByRole('alert')).toHaveCount(2)
+  await expect(maint.getByTestId('uninstall-result')).toHaveCount(0)
+
+  // 预检：等待首次连接的 e2e-node 算离线，会被跳过，不挡迁移；再正式迁移。8 枚恢复码前面已经用完，这里用验证器的码
+  await page.goto('/settings')
+  await page.getByLabel('新的主控地址（https://）').fill('https://panel2.e2e.example')
+  await page.getByRole('button', { name: '预检', exact: true }).click()
+  await verify(await freshCode())
+  const result = page.getByTestId('migrate-result')
+  await expect(result).toContainText('预检通过，可以迁移。')
+  await expect(result).toContainText('跳过的离线节点：e2e-node')
+  await expect(page.getByTestId('migrate-node-e2e-node')).toContainText('离线')
+  await page.getByRole('button', { name: '迁移', exact: true }).click()
+  await verify(await freshCode())
+  await expect(result).toContainText('已迁移到 https://panel2.e2e.example')
+  await expect(page.getByLabel('主控地址', { exact: true })).toHaveValue('https://panel2.e2e.example')
 })

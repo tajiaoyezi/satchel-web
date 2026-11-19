@@ -4,18 +4,24 @@ import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { run } from '@/api/client'
-import type { Page } from '@/api/types'
+import type { Job, Page } from '@/api/types'
 import { AdminPage } from '@/components/AdminPage'
+import { useDialogs } from '@/components/dialogs/DialogsProvider'
 import { ErrorNotice } from '@/components/ErrorNotice'
+import { JobProgress } from '@/components/JobProgress'
 import { ServerStatusBadge, type ServerObject, type ServerSummary } from '@/components/ServerStatus'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { formatTime } from '@/lib/format'
+
+import { ChannelSelect, UpdateResults, type Channel, type UpdateCheckItem, type UpdateCheckList, type UpdateTargetResult } from './-update'
 
 export const Route = createFileRoute('/_app/servers/')({ component: ServersPage })
 
@@ -36,6 +42,7 @@ function ServersPage() {
 function ServerList() {
   const { t } = useTranslation('servers')
   const [adding, setAdding] = useState(false)
+  const [updating, setUpdating] = useState(false)
   const list = useInfiniteQuery({
     queryKey: ['server list'],
     queryFn: ({ pageParam }) => run<Page<ServerSummary>>('server list', { limit: PAGE_LIMIT, cursor: pageParam }),
@@ -50,6 +57,9 @@ function ServerList() {
     <div className="grid gap-4">
       <div className="flex flex-wrap items-center gap-2">
         <Button onClick={() => setAdding(true)}>{t('actions.add')}</Button>
+        <Button variant="outline" onClick={() => setUpdating(true)}>
+          {t('batch.open')}
+        </Button>
         <div className="ml-auto flex flex-wrap items-center gap-2 text-sm">
           <Badge variant="outline" data-testid="count-online">
             {t('list.online', { count: count('connected') })}
@@ -74,6 +84,7 @@ function ServerList() {
         </Button>
       )}
       {adding && <AddServerDialog onClose={() => setAdding(false)} />}
+      {updating && <BatchUpdateDialog onClose={() => setUpdating(false)} />}
     </div>
   )
 }
@@ -203,6 +214,155 @@ function AddServerDialog({ onClose }: { onClose: () => void }) {
             </Button>
           </DialogFooter>
         </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// selectable：能升级、名字里也没有逗号的服务器才能勾进批量升级。
+const selectable = (i: UpdateCheckItem) => i.can_apply && !i.server.includes(',')
+
+// BatchOutcome 是批量升级 done 的 output，也是 failed 时错误 state 里的字段。
+interface BatchOutcome {
+  succeeded?: number
+  failed?: number
+  aborted?: number
+  results?: UpdateTargetResult[]
+}
+
+function BatchSummary({ outcome }: { outcome: BatchOutcome | null }) {
+  const { t } = useTranslation('servers')
+  if (!outcome || !Array.isArray(outcome.results)) return null
+  return (
+    <div className="grid gap-2">
+      <p>{t('batch.summary', { succeeded: outcome.succeeded ?? 0, failed: outcome.failed ?? 0, aborted: outcome.aborted ?? 0 })}</p>
+      <UpdateResults results={outcome.results} />
+    </div>
+  )
+}
+
+// BatchUpdateDialog 是批量升级（m2-10 design 第 4 条）：先「检查全部」，只能勾能升级的；目标版本取检查返回的最新版本，
+// 只用 --servers 发所选的名字（--all 会带上不能升级的，主控受理前就整单拒绝）；危险确认的确认值是所选台数。
+// 名字带逗号的服务器也不能勾：servers 用逗号分隔，带逗号的名字会被主控拆成几台（审查发现，根本的修法在主控）。
+// 检查结果只属于检查时的渠道；受理后检查结果收起。关掉对话框不取消 job。
+function BatchUpdateDialog({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation('servers')
+  const dialogs = useDialogs()
+  const queryClient = useQueryClient()
+  const [channel, setChannel] = useState<Channel>('stable')
+  const [selected, setSelected] = useState<ReadonlySet<string>>(new Set())
+  const [job, setJob] = useState<Job | null>(null)
+  const check = useMutation({
+    mutationFn: (ch: Channel) => run<UpdateCheckList>('server update check', { flags: { channel: ch } }),
+    onSuccess: (res) => setSelected(new Set(res.items.filter(selectable).map((i) => i.server))),
+  })
+  const apply = useMutation({
+    mutationFn: ({ version, servers, ch }: { version: string; servers: string[]; ch: Channel }) =>
+      run<Job>('server update batch', { args: [version], flags: { servers: servers.join(','), channel: ch }, confirm: String(servers.length) }),
+    onSuccess: (accepted) => {
+      setJob(accepted)
+      check.reset()
+    },
+  })
+  const c = check.data
+  const chosen = c ? c.items.filter((i) => selectable(i) && selected.has(i.server)).map((i) => i.server) : []
+  const toggle = (server: string, on: boolean) =>
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (on) next.add(server)
+      else next.delete(server)
+      return next
+    })
+  const onApply = async () => {
+    if (!c) return
+    const count = chosen.length
+    const ok = await dialogs.confirm({
+      title: t('batch.confirmTitle', { count, version: c.latest_version }),
+      description: t('batch.confirmDescription'),
+      value: String(count),
+      destructive: true,
+    })
+    if (ok) apply.mutate({ version: c.latest_version, servers: chosen, ch: channel })
+  }
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>{t('batch.title')}</DialogTitle>
+          <DialogDescription>{t('batch.description')}</DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <ChannelSelect
+              id="batch-channel"
+              value={channel}
+              onChange={(v) => {
+                setChannel(v)
+                check.reset()
+              }}
+            />
+            <Button variant="outline" disabled={check.isPending} onClick={() => check.mutate(channel)}>
+              {t('batch.checkAll')}
+            </Button>
+          </div>
+          <ErrorNotice error={check.error} />
+          {c && (
+            <>
+              <Table data-testid="batch-check">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead />
+                    <TableHead>{t('batch.server')}</TableHead>
+                    <TableHead>{t('update.current')}</TableHead>
+                    <TableHead>{t('update.canApply')}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {c.items.map((i) => (
+                    <TableRow key={i.server}>
+                      <TableCell>
+                        <Checkbox
+                          aria-label={t('batch.select', { name: i.server })}
+                          disabled={!selectable(i)}
+                          checked={selectable(i) && selected.has(i.server)}
+                          onCheckedChange={(v) => toggle(i.server, v === true)}
+                        />
+                      </TableCell>
+                      <TableCell className="font-mono">{i.server}</TableCell>
+                      <TableCell className="font-mono">{i.current_version || t('update.unknownVersion')}</TableCell>
+                      <TableCell>
+                        {!i.can_apply ? t('update.canApplyNo', { reason: i.reason ?? '' }) : selectable(i) ? t('update.canApplyYes') : t('batch.comma')}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              <div>
+                <Button variant="destructive" disabled={chosen.length === 0 || apply.isPending} onClick={() => void onApply()}>
+                  {t('batch.apply', { count: chosen.length, version: c.latest_version })}
+                </Button>
+              </div>
+            </>
+          )}
+          <ErrorNotice error={apply.error} />
+          {job && (
+            <>
+              <p className="text-muted-foreground text-sm">{t('batch.closeHint')}</p>
+              <JobProgress
+                key={job.job_id}
+                accepted={job}
+                onFinish={() => void queryClient.invalidateQueries({ queryKey: ['server list'] })}
+                renderDone={(output) => <BatchSummary outcome={output as BatchOutcome | null} />}
+                renderFailed={(e) => <BatchSummary outcome={e.body.state as BatchOutcome} />}
+              />
+            </>
+          )}
+        </div>
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onClose}>
+            {t('actions.close', { ns: 'common' })}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )

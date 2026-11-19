@@ -43,6 +43,7 @@ export interface ServerObject {
     rotation_pending: boolean
     revoke_pending: boolean
     last_rotated_at: string | null
+    same_host_as_master?: boolean
   }
 }
 

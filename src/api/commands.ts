@@ -29,6 +29,7 @@ export const commands = {
   'settings snapshots list': { method: 'GET', path: '/api/v1/settings/snapshots', list: true },
   'settings rollback': { method: 'POST', path: '/api/v1/settings/rollback/{snapshot}' },
   'settings master-url set': { method: 'POST', path: '/api/v1/settings/master-url/set' },
+  'settings master-url migrate': { method: 'POST', path: '/api/v1/settings/master-url/migrate' },
   'settings gates set': { method: 'POST', path: '/api/v1/settings/gates/set' },
   'settings update-cdn set': { method: 'POST', path: '/api/v1/settings/update-cdn/set/{enabled}' },
   'settings turnstile test': { method: 'POST', path: '/api/v1/settings/turnstile/test' },
@@ -67,6 +68,12 @@ export const commands = {
   'server token show': { method: 'GET', path: '/api/v1/server/token/show/{name}' },
   'server token rotate': { method: 'POST', path: '/api/v1/server/token/rotate/{name}' },
   'server token revoke': { method: 'POST', path: '/api/v1/server/token/revoke/{name}' },
+  'server update check': { method: 'GET', path: '/api/v1/server/update/check/{name}' },
+  'server update apply': { method: 'POST', path: '/api/v1/server/update/apply/{name}/{version}' },
+  'server update batch': { method: 'POST', path: '/api/v1/server/update/batch/{version}' },
+  'server uninstall': { method: 'POST', path: '/api/v1/server/uninstall/{name}' },
+  'server switch-listen-port': { method: 'POST', path: '/api/v1/server/switch-listen-port/{name}' },
+  'server probe-master-url': { method: 'GET', path: '/api/v1/server/probe-master-url/{name}' },
 } as const satisfies Record<string, CommandRoute>
 
 export type CommandName = keyof typeof commands

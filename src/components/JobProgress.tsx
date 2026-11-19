@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import type { ApiError } from '@/api/client'
 import type { Job } from '@/api/types'
 import { ErrorNotice } from '@/components/ErrorNotice'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -9,10 +10,22 @@ import { formatBytes } from '@/lib/format'
 import { jobError, jobFinished, jobOutput, useJobFollower } from '@/lib/jobs'
 
 // JobProgress 跟一个受理了的长任务并显示它（web-console「长任务的跟踪」）：状态、进行时已知的 progress 字段、结局。done 时用
-// renderDone 显示 output；failed 时显示 output 里的四字段错误；连不上太久时说明 job 仍在主控里。换 job 时用 key 换一个新的组件。
-export function JobProgress({ accepted, onFinish, renderDone }: { accepted: Job; onFinish?: (job: Job) => void; renderDone?: (output: unknown) => ReactNode }) {
+// renderDone 显示 output；failed 时显示 output 里的四字段错误，是四字段错误时再交给 renderFailed 显示它的 state（如节点升级的磁盘状态）；
+// 连不上太久时说明 job 仍在主控里。换 job 时用 key 换一个新的组件。
+export function JobProgress({
+  accepted,
+  onFinish,
+  renderDone,
+  renderFailed,
+}: {
+  accepted: Job
+  onFinish?: (job: Job) => void
+  renderDone?: (output: unknown) => ReactNode
+  renderFailed?: (error: ApiError) => ReactNode
+}) {
   const { t } = useTranslation()
   const { job, unreachable, error } = useJobFollower(accepted, { onFinish })
+  const failure = jobError(job)
   return (
     <div className="grid gap-2 text-sm" data-testid="job-progress">
       <p className="flex flex-wrap items-center gap-2">
@@ -21,7 +34,8 @@ export function JobProgress({ accepted, onFinish, renderDone }: { accepted: Job;
       </p>
       {!jobFinished(job) && job.progress && <ProgressFields progress={job.progress} />}
       {job.status === 'done' && renderDone?.(jobOutput(job))}
-      {job.status === 'failed' && <ErrorNotice error={jobError(job) ?? new Error(t('job.failed'))} />}
+      {job.status === 'failed' && <ErrorNotice error={failure ?? new Error(t('job.failed'))} />}
+      {failure && renderFailed?.(failure)}
       {unreachable && (
         <Alert variant="destructive" role="alert">
           <AlertDescription>{t('job.unreachable', { id: job.job_id })}</AlertDescription>

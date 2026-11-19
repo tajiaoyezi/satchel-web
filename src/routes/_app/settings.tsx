@@ -4,7 +4,7 @@ import { useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
-import { ApiError, run, upload } from '@/api/client'
+import { ApiError, run, upload, type Verification } from '@/api/client'
 import { settingsShowQuery } from '@/api/queries'
 import type { Page, SettingsObject } from '@/api/types'
 import { updateBoot } from '@/boot'
@@ -15,6 +15,7 @@ import { Turnstile } from '@/components/Turnstile'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -93,6 +94,8 @@ function SettingsBody() {
       <p className="text-muted-foreground text-sm">{t('version', { version: show.data.metadata.resourceVersion })}</p>
       <BrandingCard key={keyOf([...BRANDING.map(([f]) => f), 'default_theme'])} values={values} />
       <MasterUrlCard key={keyOf(MASTER_URL)} values={values} />
+      {/* 不按字段的值重置：迁移成功后设置换成新值，这一块的结果要留在页面上 */}
+      <MigrateCard />
       <GatesCard key={keyOf([...GATE_SWITCHES, ...GATE_NUMBERS, ...GATE_TEXTS])} values={values} />
       <UpdateCdnCard enabled={values.update_cdn_enabled === true} />
       <SnapshotsCard />
@@ -283,6 +286,161 @@ function MasterUrlCard({ values }: { values: Values }) {
         </Button>
       </form>
     </Section>
+  )
+}
+
+// MigrationNode 是迁移预检与结果里的一台节点（settings master-url migrate）。
+interface MigrationNode {
+  server: string
+  state: string // ready | unreachable | offline
+  latency_ms?: number
+  same_host_as_master: boolean
+  pending?: boolean
+  error?: string
+}
+
+interface MigrateOutput {
+  preview: boolean
+  master_url: string
+  turnstile_cleared: boolean
+  can_migrate?: boolean
+  ready: number
+  unreachable: number
+  offline: number
+  pushed?: string[]
+  skipped_offline?: string[]
+  blocking?: MigrationNode[]
+  nodes: MigrationNode[]
+  settings?: SettingsObject
+}
+
+// MigrateCard 是迁移主控地址（m2-10 design 第 7 条）：人类专属，预检与迁移每次都先当场验证；预检不改任何东西，
+// 迁移带读到的 resourceVersion，成功后用返回的设置换掉读到的设置。哪些节点挡住迁移由主控判定，页面原样列出。
+function MigrateCard() {
+  const { t } = useTranslation('settings')
+  const dialogs = useDialogs()
+  const [url, setUrl] = useState('')
+  const [sub, setSub] = useState('')
+  const [changeDomain, setChangeDomain] = useState(false)
+  const [skip, setSkip] = useState(false)
+  const [result, setResult] = useState<MigrateOutput | null>(null)
+  const flags = () => ({
+    url: url.trim(),
+    'subscription-url': sub.trim() || undefined,
+    'change-domain': changeDomain || undefined,
+    'skip-unreachable': skip || undefined,
+  })
+  const preview = useMutation({
+    mutationFn: (verify: Verification) => run<MigrateOutput>('settings master-url migrate', { flags: { ...flags(), preview: true }, verify }),
+    onSuccess: setResult,
+  })
+  const write = useSettingsWrite()
+  const start = async (action: 'preview' | 'migrate') => {
+    const verify = await dialogs.verify()
+    if (!verify) return
+    setResult(null)
+    preview.reset()
+    write.reset()
+    if (action === 'preview') return preview.mutate(verify)
+    write.mutate(async (rv) => {
+      const out = await run<MigrateOutput>('settings master-url migrate', { flags: { ...flags(), 'resource-version': rv }, verify })
+      setResult(out)
+      return out.settings as SettingsObject
+    })
+  }
+  const blocked = write.error instanceof ApiError && write.error.code === 'conflict' && Array.isArray(write.error.body.state.blocking) ? (write.error.body.state.blocking as MigrationNode[]) : null
+  const busy = preview.isPending || write.isPending
+  return (
+    <Section title={t('migrate.title')} description={t('migrate.description')}>
+      <form
+        className="grid gap-4"
+        onSubmit={(e) => {
+          e.preventDefault()
+          void start('preview')
+        }}
+      >
+        <Field id="migrate-url" label={t('migrate.url')}>
+          <Input id="migrate-url" value={url} onChange={(e) => setUrl(e.target.value)} />
+        </Field>
+        <Field id="migrate-subscription-url" label={t('migrate.subscriptionUrl')}>
+          <Input id="migrate-subscription-url" value={sub} onChange={(e) => setSub(e.target.value)} />
+        </Field>
+        <label className="flex items-center gap-2 text-sm">
+          <Checkbox checked={changeDomain} onCheckedChange={(v) => setChangeDomain(v === true)} aria-label={t('migrate.changeDomain')} />
+          {t('migrate.changeDomain')}
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <Checkbox checked={skip} onCheckedChange={(v) => setSkip(v === true)} aria-label={t('migrate.skipUnreachable')} />
+          {t('migrate.skipUnreachable')}
+        </label>
+        <ErrorNotice error={preview.error} />
+        <WriteError write={write} />
+        {blocked && (
+          <div className="grid gap-2" data-testid="migrate-blocking">
+            <p className="text-sm font-medium">{t('migrate.blocking')}</p>
+            <MigrationNodes nodes={blocked} />
+          </div>
+        )}
+        {result && <MigrateResult result={result} />}
+        <div className="flex flex-wrap gap-2">
+          <Button type="submit" variant="outline" disabled={!url.trim() || busy}>
+            {t('migrate.preview')}
+          </Button>
+          <Button type="button" variant="destructive" disabled={!url.trim() || busy} onClick={() => void start('migrate')}>
+            {t('migrate.migrate')}
+          </Button>
+        </div>
+      </form>
+    </Section>
+  )
+}
+
+function MigrateResult({ result: r }: { result: MigrateOutput }) {
+  const { t } = useTranslation('settings')
+  const lines = r.preview
+    ? [r.can_migrate ? t('migrate.canMigrate') : t('migrate.blocked'), r.turnstile_cleared ? t('migrate.willClearTurnstile') : t('migrate.keepTurnstile')]
+    : [t('migrate.done', { url: r.master_url, count: r.pushed?.length ?? 0 }), ...(r.turnstile_cleared ? [t('migrate.turnstileCleared')] : [])]
+  const skipped = r.skipped_offline ?? []
+  return (
+    <Alert data-testid="migrate-result">
+      <AlertDescription className="grid gap-2">
+        {lines.map((l) => (
+          <p key={l}>{l}</p>
+        ))}
+        <p>{t('migrate.counts', { ready: r.ready, unreachable: r.unreachable, offline: r.offline })}</p>
+        {skipped.length > 0 && <p>{t('migrate.skipped', { names: skipped.join(', ') })}</p>}
+        <MigrationNodes nodes={r.nodes} />
+      </AlertDescription>
+    </Alert>
+  )
+}
+
+function MigrationNodes({ nodes }: { nodes: MigrationNode[] }) {
+  const { t } = useTranslation('settings')
+  if (nodes.length === 0) return <p className="text-muted-foreground text-sm">{t('migrate.noNodes')}</p>
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>{t('migrate.server')}</TableHead>
+          <TableHead>{t('migrate.state')}</TableHead>
+          <TableHead>{t('migrate.latency')}</TableHead>
+          <TableHead>{t('migrate.sameHost')}</TableHead>
+          <TableHead>{t('migrate.error')}</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {nodes.map((n) => (
+          <TableRow key={n.server} data-testid={`migrate-node-${n.server}`}>
+            <TableCell className="font-mono">{n.server}</TableCell>
+            <TableCell>{t(`migrate.states.${n.state}` as 'migrate.states.ready', { defaultValue: n.state })}</TableCell>
+            <TableCell>{n.latency_ms ? t('migrate.latencyValue', { ms: n.latency_ms }) : ''}</TableCell>
+            <TableCell>{n.same_host_as_master ? t('migrate.yes') : t('migrate.no')}</TableCell>
+            <TableCell>{n.error ?? ''}</TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
   )
 }
 
