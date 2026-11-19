@@ -201,7 +201,7 @@ describe('服务器列表页：批量升级', () => {
     expect(await screen.findByText('要确认的值：2')).toBeTruthy()
     await user.click(screen.getByRole('button', { name: '确认' }))
     await waitFor(() =>
-      expect(calls.find((c) => c.method === 'POST' && c.url === '/api/v1/server/update/batch/0.2.0')?.body).toEqual({ servers: 'hk-1,jp-2', channel: 'stable', confirm: '2' }),
+      expect(calls.find((c) => c.method === 'POST' && c.url === '/api/v1/server/update/batch/0.2.0')?.body).toEqual({ servers: ['hk-1', 'jp-2'], channel: 'stable', confirm: '2' }),
     )
     expect(await dialog.findByText(/关掉这个对话框不会取消升级/)).toBeTruthy()
   })
@@ -235,15 +235,20 @@ describe('服务器列表页：批量升级', () => {
     expect(within(dialog.getByTestId('update-result-jp-2')).getByText('0.1.0 → 0.2.0')).toBeTruthy()
   })
 
-  it('名字带逗号的服务器不能勾进批量升级，写明原因', async () => {
-    const { dialog } = await openBatch({
+  it('名字带逗号的服务器照常能勾，名字原样作为数组的一项发出', async () => {
+    const { calls, user, dialog } = await openBatch({
       'GET /api/v1/server/update/check': { body: { channel: 'stable', latest_version: '0.2.0', total: 2, items: [item('hk-1'), item('a,b')] } },
+      'POST /api/v1/server/update/batch/0.2.0': batchJob(),
+      'GET /api/v1/job/get/job-b': batchJob({ status: 'running' }),
     })
     const comma = dialog.getByRole('checkbox', { name: '选择 a,b' })
-    expect(comma.hasAttribute('disabled')).toBe(true)
-    expect(comma.getAttribute('data-state')).toBe('unchecked')
-    expect(dialog.getByText(/名字里有逗号/)).toBeTruthy()
-    expect(dialog.getByRole('button', { name: '升级所选的 1 台到 0.2.0' })).toBeTruthy()
+    expect(comma.hasAttribute('disabled')).toBe(false)
+    expect(comma.getAttribute('data-state')).toBe('checked')
+    await user.click(dialog.getByRole('button', { name: '升级所选的 2 台到 0.2.0' }))
+    await user.click(await screen.findByRole('button', { name: '确认' }))
+    await waitFor(() =>
+      expect(calls.find((c) => c.method === 'POST' && c.url === '/api/v1/server/update/batch/0.2.0')?.body).toEqual({ servers: ['hk-1', 'a,b'], channel: 'stable', confirm: '2' }),
+    )
   })
 
   it('批量升级中途中止：显示 reason，逐台列出失败与中止的原因和磁盘状态', async () => {

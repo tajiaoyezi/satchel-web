@@ -265,8 +265,7 @@
       "old_after_swap": "换过但仍报旧版本",
       "new_unconfirmed": "新版本未确认"
     },
-    "summary": "成功 {{succeeded}} 台，失败 {{failed}} 台，中止 {{aborted}} 台",
-    "comma": "不能批量：名字里有逗号，批量升级会被主控拆开，请到详情页单独升级"
+    "summary": "成功 {{succeeded}} 台，失败 {{failed}} 台，中止 {{aborted}} 台"
   },
   "probe": {
     "title": "探测主控地址",

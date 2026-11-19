@@ -21,7 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { formatTime } from '@/lib/format'
 
-import { ChannelSelect, UpdateResults, type Channel, type UpdateCheckItem, type UpdateCheckList, type UpdateTargetResult } from './-update'
+import { ChannelSelect, UpdateResults, type Channel, type UpdateCheckList, type UpdateTargetResult } from './-update'
 
 export const Route = createFileRoute('/_app/servers/')({ component: ServersPage })
 
@@ -219,9 +219,6 @@ function AddServerDialog({ onClose }: { onClose: () => void }) {
   )
 }
 
-// selectable：能升级、名字里也没有逗号的服务器才能勾进批量升级。
-const selectable = (i: UpdateCheckItem) => i.can_apply && !i.server.includes(',')
-
 // BatchOutcome 是批量升级 done 的 output，也是 failed 时错误 state 里的字段。
 interface BatchOutcome {
   succeeded?: number
@@ -242,8 +239,8 @@ function BatchSummary({ outcome }: { outcome: BatchOutcome | null }) {
 }
 
 // BatchUpdateDialog 是批量升级（m2-10 design 第 4 条）：先「检查全部」，只能勾能升级的；目标版本取检查返回的最新版本，
-// 只用 --servers 发所选的名字（--all 会带上不能升级的，主控受理前就整单拒绝）；危险确认的确认值是所选台数。
-// 名字带逗号的服务器也不能勾：servers 用逗号分隔，带逗号的名字会被主控拆成几台（审查发现，根本的修法在主控）。
+// 只用 --servers 发所选的名字（字符串数组，每项是一个完整的名字，带逗号也不拆；--all 会带上不能升级的，主控受理前就整单拒绝）；
+// 危险确认的确认值是所选台数。
 // 检查结果只属于检查时的渠道；受理后检查结果收起。关掉对话框不取消 job。
 function BatchUpdateDialog({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation('servers')
@@ -254,18 +251,18 @@ function BatchUpdateDialog({ onClose }: { onClose: () => void }) {
   const [job, setJob] = useState<Job | null>(null)
   const check = useMutation({
     mutationFn: (ch: Channel) => run<UpdateCheckList>('server update check', { flags: { channel: ch } }),
-    onSuccess: (res) => setSelected(new Set(res.items.filter(selectable).map((i) => i.server))),
+    onSuccess: (res) => setSelected(new Set(res.items.filter((i) => i.can_apply).map((i) => i.server))),
   })
   const apply = useMutation({
     mutationFn: ({ version, servers, ch }: { version: string; servers: string[]; ch: Channel }) =>
-      run<Job>('server update batch', { args: [version], flags: { servers: servers.join(','), channel: ch }, confirm: String(servers.length) }),
+      run<Job>('server update batch', { args: [version], flags: { servers, channel: ch }, confirm: String(servers.length) }),
     onSuccess: (accepted) => {
       setJob(accepted)
       check.reset()
     },
   })
   const c = check.data
-  const chosen = c ? c.items.filter((i) => selectable(i) && selected.has(i.server)).map((i) => i.server) : []
+  const chosen = c ? c.items.filter((i) => i.can_apply && selected.has(i.server)).map((i) => i.server) : []
   const toggle = (server: string, on: boolean) =>
     setSelected((prev) => {
       const next = new Set(prev)
@@ -323,16 +320,14 @@ function BatchUpdateDialog({ onClose }: { onClose: () => void }) {
                       <TableCell>
                         <Checkbox
                           aria-label={t('batch.select', { name: i.server })}
-                          disabled={!selectable(i)}
-                          checked={selectable(i) && selected.has(i.server)}
+                          disabled={!i.can_apply}
+                          checked={i.can_apply && selected.has(i.server)}
                           onCheckedChange={(v) => toggle(i.server, v === true)}
                         />
                       </TableCell>
                       <TableCell className="font-mono">{i.server}</TableCell>
                       <TableCell className="font-mono">{i.current_version || t('update.unknownVersion')}</TableCell>
-                      <TableCell>
-                        {!i.can_apply ? t('update.canApplyNo', { reason: i.reason ?? '' }) : selectable(i) ? t('update.canApplyYes') : t('batch.comma')}
-                      </TableCell>
+                      <TableCell>{i.can_apply ? t('update.canApplyYes') : t('update.canApplyNo', { reason: i.reason ?? '' })}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
