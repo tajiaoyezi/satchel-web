@@ -74,6 +74,12 @@ export const commands = {
   'server uninstall': { method: 'POST', path: '/api/v1/server/uninstall/{name}' },
   'server switch-listen-port': { method: 'POST', path: '/api/v1/server/switch-listen-port/{name}' },
   'server probe-master-url': { method: 'GET', path: '/api/v1/server/probe-master-url/{name}' },
+  'server system-info': { method: 'GET', path: '/api/v1/server/system-info/{name}' },
+  'server nics': { method: 'GET', path: '/api/v1/server/nics/{name}' },
+  'server speed': { method: 'GET', path: '/api/v1/server/speed/{name}' },
+  'server traffic-stats set': { method: 'POST', path: '/api/v1/server/traffic-stats/set/{name}' },
+  'server logs list': { method: 'GET', path: '/api/v1/server/logs/{name}', list: true },
+  'server logs files': { method: 'GET', path: '/api/v1/server/logs/files/{name}', list: true },
 } as const satisfies Record<string, CommandRoute>
 
 export type CommandName = keyof typeof commands

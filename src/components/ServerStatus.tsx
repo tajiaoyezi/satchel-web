@@ -11,11 +11,14 @@ export interface ServerSummary {
   last_heartbeat: string | null
   ip_address: string | null
   ip_address_v6: string
+  current_upload_speed?: number
+  current_download_speed?: number
+  speed_updated_at?: string | null
 }
 
 // ServerObject 是 server get 与 server add 返回的资源对象里页面用到的字段；status 里的三把令牌不读、不显示。
 export interface ServerObject {
-  metadata: { id: number }
+  metadata: { id: number; resourceVersion?: number }
   spec: {
     name: string
     connection_mode: string
@@ -25,6 +28,9 @@ export interface ServerObject {
     pull_address: string
     pull_address_v6: string
     pull_port: number
+    traffic_stats_mode?: string
+    traffic_source?: string
+    include_in_traffic_stats?: boolean
   }
   status: {
     status: string

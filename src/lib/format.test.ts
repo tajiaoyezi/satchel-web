@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { formatBytes, formatTime } from './format'
+import { formatBytes, formatSpeed, formatTime } from './format'
 
 describe('formatBytes', () => {
   it('按 1024 进位', () => {
@@ -9,6 +9,14 @@ describe('formatBytes', () => {
     expect(formatBytes(1536)).toBe('1.5 KB')
     expect(formatBytes(20 * 1024 * 1024)).toBe('20 MB')
     expect(formatBytes(3 * 1024 ** 3)).toBe('3.0 GB')
+  })
+})
+
+describe('formatSpeed', () => {
+  it('每秒字节数加 /s', () => {
+    expect(formatSpeed(0)).toBe('0 B/s')
+    expect(formatSpeed(2048)).toBe('2.0 KB/s')
+    expect(formatSpeed(1024 * 1024)).toBe('1.0 MB/s')
   })
 })
 

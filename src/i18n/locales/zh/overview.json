@@ -15,7 +15,8 @@
     "add": "去服务器页添加",
     "adminOnly": "服务器只对管理员显示。",
     "viewAll": "查看全部 {{count}} 台",
-    "noAddress": "无地址"
+    "noAddress": "无地址",
+    "speed": "↑ {{up}} ↓ {{down}}"
   },
   "total": "共 {{count}} 条"
 }

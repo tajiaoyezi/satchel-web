@@ -20,3 +20,8 @@ export function formatBytes(n: number): string {
   }
   return `${v < 10 ? v.toFixed(1) : Math.round(v)} ${UNITS[i]}`
 }
+
+// formatSpeed 把每秒字节数显示成 formatBytes 的写法加「/s」（m2-14 design 第 6 条）。
+export function formatSpeed(bytesPerSec: number): string {
+  return `${formatBytes(bytesPerSec)}/s`
+}

@@ -7,6 +7,7 @@ import { accountQuery } from '@/api/queries'
 import { ErrorNotice } from '@/components/ErrorNotice'
 import { ServerStatusBadge, type ServerSummary } from '@/components/ServerStatus'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { formatSpeed } from '@/lib/format'
 
 export const Route = createFileRoute('/_app/')({ component: OverviewPage })
 
@@ -89,6 +90,9 @@ function ServersPartition({ partition: p }: { partition: Partition<ServerSummary
                 </Link>
                 <ServerStatusBadge status={s.status} />
                 <span className="ml-auto truncate font-mono text-xs">{s.ip_address || s.ip_address_v6 || t('servers.noAddress')}</span>
+                <span className="text-xs whitespace-nowrap tabular-nums" data-testid={`overview-speed-${s.name}`}>
+                  {t('servers.speed', { up: formatSpeed(s.current_upload_speed ?? 0), down: formatSpeed(s.current_download_speed ?? 0) })}
+                </span>
               </li>
             ))}
           </ul>

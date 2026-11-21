@@ -20,10 +20,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { copyText } from '@/lib/clipboard'
-import { formatBytes, formatTime } from '@/lib/format'
+import { useDashboardFeed, type DashboardFeed } from '@/lib/dashboard'
+import { formatBytes, formatSpeed, formatTime } from '@/lib/format'
 
 import { Maintenance } from './-maintenance'
 import { DEFAULT_PORTS, Fields, REFRESH_MS, serverQuery } from './-shared'
+import { LogsTab, SystemTab, TrafficStats, type TrafficStatsView } from './-telemetry'
 
 export const Route = createFileRoute('/_app/servers/$name')({ component: ServerPage })
 
@@ -42,7 +44,14 @@ interface TrafficTotal {
   downlink: number
 }
 
-interface TrafficView {
+// SpeedView 是 server speed <名字> 的输出（读主控内存，不问节点）。
+interface SpeedView {
+  upload_speed: number
+  download_speed: number
+  updated_at: string | null
+}
+
+interface TrafficView extends TrafficStatsView {
   since: string | null
   collected_at: string | null
   traffic: TrafficTotal[]
@@ -81,7 +90,7 @@ interface RestartResult {
   inbounds: string[]
 }
 
-type Tab = 'overview' | 'credentials' | 'traffic' | 'connections' | 'limit' | 'kick' | 'maintenance'
+type Tab = 'overview' | 'credentials' | 'traffic' | 'connections' | 'limit' | 'kick' | 'system' | 'logs' | 'maintenance'
 type FormTab = 'connections' | 'limit' | 'kick'
 
 // Target 是从流量表的一行带到连接、限速、踢线某一页的入站与凭据。三页各有一份：点哪个入口只重建哪一页，
@@ -111,6 +120,8 @@ function ServerDetail({ name }: { name: string }) {
   const { t } = useTranslation('servers')
   const [tab, setTab] = useState<Tab>('overview')
   const [targets, setTargets] = useState<Record<FormTab, Target>>({ connections: EMPTY_TARGET, limit: EMPTY_TARGET, kick: EMPTY_TARGET })
+  // 推送只补实时网速，其它字段照旧来自 server get（m2-14 design 第 3 条）。
+  const feed = useDashboardFeed()
   const pick = (next: FormTab, row: TrafficTotal) => {
     setTargets((prev) => ({ ...prev, [next]: { inbound: row.inbound, credential: row.credential, seq: prev[next].seq + 1 } }))
     setTab(next)
@@ -136,10 +147,12 @@ function ServerDetail({ name }: { name: string }) {
           <TabsTrigger value="connections">{t('detail.tabs.connections')}</TabsTrigger>
           <TabsTrigger value="limit">{t('detail.tabs.limit')}</TabsTrigger>
           <TabsTrigger value="kick">{t('detail.tabs.kick')}</TabsTrigger>
+          <TabsTrigger value="system">{t('detail.tabs.system')}</TabsTrigger>
+          <TabsTrigger value="logs">{t('detail.tabs.logs')}</TabsTrigger>
           <TabsTrigger value="maintenance">{t('detail.tabs.maintenance')}</TabsTrigger>
         </TabsList>
         <TabsContent value="overview" className="grid gap-4">
-          <Overview name={name} />
+          <Overview name={name} feed={feed} />
           <Install name={name} />
         </TabsContent>
         {/* 凭据页不保留挂载：切走就卸载，原文跟着消失（m2-08 design 第 3 条） */}
@@ -159,6 +172,13 @@ function ServerDetail({ name }: { name: string }) {
         <TabsContent value="kick" forceMount hidden={tab !== 'kick'}>
           <Kick key={targets.kick.seq} name={name} initial={targets.kick} />
         </TabsContent>
+        {/* 系统与日志两页要问节点，点了才请求；保留挂载，结果留在页面上（m2-14 design 第 4 条） */}
+        <TabsContent value="system" forceMount hidden={tab !== 'system'}>
+          <SystemTab name={name} />
+        </TabsContent>
+        <TabsContent value="logs" forceMount hidden={tab !== 'logs'}>
+          <LogsTab name={name} />
+        </TabsContent>
         {/* 维护页也保留挂载：升级是长任务，切走再回来进度与结果还在（m2-10 design 第 1 条） */}
         <TabsContent value="maintenance" forceMount hidden={tab !== 'maintenance'}>
           <Maintenance name={name} />
@@ -168,9 +188,21 @@ function ServerDetail({ name }: { name: string }) {
   )
 }
 
-function Overview({ name }: { name: string }) {
+function Overview({ name, feed }: { name: string; feed: DashboardFeed }) {
   const { t } = useTranslation('servers')
   const server = useQuery(serverQuery(name))
+  // 推送不在时才请求 server speed：读的是主控内存，不问节点，同样每 10 秒刷新。断开后在它的新结果回来之前，
+  // 继续用最后一帧里这台服务器的值，不会闪回推送之前的旧值。
+  const speed = useQuery({
+    queryKey: ['server speed', name],
+    queryFn: () => run<SpeedView>('server speed', { args: [name] }),
+    refetchInterval: REFRESH_MS,
+    enabled: !feed.live,
+  })
+  const fromFrame = feed.frame?.servers.find((s) => s.name === name)
+  const pushed = fromFrame && (feed.live || feed.receivedAt > speed.dataUpdatedAt) ? fromFrame : undefined
+  const up = pushed ? pushed.current_upload_speed : speed.data?.upload_speed
+  const down = pushed ? pushed.current_download_speed : speed.data?.download_speed
   const none = t('fields.none')
   const s = server.data?.status
   const spec = server.data?.spec
@@ -199,6 +231,12 @@ function Overview({ name }: { name: string }) {
               [t('fields.coreBootTime'), s.core_boot_time ? formatTime(s.core_boot_time) : none],
               [t('fields.coreBootCount'), s.core_boot_count],
               [t('fields.sameHost'), s.same_host_as_master ? t('fields.sameHostYes') : t('fields.sameHostNo')],
+              [
+                t('fields.speed'),
+                <span className="tabular-nums" data-testid="overview-speed">
+                  {up === undefined || down === undefined ? none : t('fields.speedValue', { up: formatSpeed(up), down: formatSpeed(down) })}
+                </span>,
+              ],
               ...(addressed
                 ? ([
                     [t('add.fields.domain'), <span className="font-mono">{spec?.domain || none}</span>],
@@ -409,59 +447,62 @@ function Traffic({ name, onPick }: { name: string; onPick: (tab: FormTab, row: T
   const v = traffic.data
   const rows = v?.traffic ?? []
   return (
-    <Card className="shadow-flat">
-      <CardHeader>
-        <CardDescription className="grid gap-1">
-          <span>{t('traffic.description')}</span>
-          {v && v.since && <span>{t('traffic.since', { time: formatTime(v.since) })}</span>}
-          {v && (v.collected_at ? <span>{t('traffic.collectedAt', { time: formatTime(v.collected_at) })}</span> : <span>{t('traffic.notCollected')}</span>)}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-3">
-        <ErrorNotice error={traffic.error} />
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t('traffic.inbound')}</TableHead>
-              <TableHead>{t('traffic.outbound')}</TableHead>
-              <TableHead>{t('traffic.credential')}</TableHead>
-              <TableHead className="text-right">{t('traffic.uplink')}</TableHead>
-              <TableHead className="text-right">{t('traffic.downlink')}</TableHead>
-              <TableHead />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.length === 0 && traffic.isSuccess && (
+    <div className="grid gap-4">
+      {v && <TrafficStats name={name} view={v} />}
+      <Card className="shadow-flat">
+        <CardHeader>
+          <CardDescription className="grid gap-1">
+            <span>{t('traffic.description')}</span>
+            {v && v.since && <span>{t('traffic.since', { time: formatTime(v.since) })}</span>}
+            {v && (v.collected_at ? <span>{t('traffic.collectedAt', { time: formatTime(v.collected_at) })}</span> : <span>{t('traffic.notCollected')}</span>)}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3">
+          <ErrorNotice error={traffic.error} />
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={6} className="text-muted-foreground text-center">
-                  {t('traffic.empty')}
-                </TableCell>
+                <TableHead>{t('traffic.inbound')}</TableHead>
+                <TableHead>{t('traffic.outbound')}</TableHead>
+                <TableHead>{t('traffic.credential')}</TableHead>
+                <TableHead className="text-right">{t('traffic.uplink')}</TableHead>
+                <TableHead className="text-right">{t('traffic.downlink')}</TableHead>
+                <TableHead />
               </TableRow>
-            )}
-            {rows.map((r) => (
-              <TableRow key={`${r.inbound}|${r.outbound}|${r.credential}`} data-testid={`traffic-${r.inbound}-${r.outbound}-${r.credential}`}>
-                <TableCell className="font-mono">{r.inbound}</TableCell>
-                <TableCell className="font-mono">{r.outbound}</TableCell>
-                <TableCell className="font-mono">{r.credential}</TableCell>
-                <TableCell className="text-right tabular-nums">{formatBytes(r.uplink)}</TableCell>
-                <TableCell className="text-right tabular-nums">{formatBytes(r.downlink)}</TableCell>
-                <TableCell className="space-x-1 text-right whitespace-nowrap">
-                  <Button size="sm" variant="ghost" onClick={() => onPick('connections', r)}>
-                    {t('traffic.toConnections')}
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={() => onPick('limit', r)}>
-                    {t('traffic.toLimit')}
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={() => onPick('kick', r)}>
-                    {t('traffic.toKick')}
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
+            </TableHeader>
+            <TableBody>
+              {rows.length === 0 && traffic.isSuccess && (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-muted-foreground text-center">
+                    {t('traffic.empty')}
+                  </TableCell>
+                </TableRow>
+              )}
+              {rows.map((r) => (
+                <TableRow key={`${r.inbound}|${r.outbound}|${r.credential}`} data-testid={`traffic-${r.inbound}-${r.outbound}-${r.credential}`}>
+                  <TableCell className="font-mono">{r.inbound}</TableCell>
+                  <TableCell className="font-mono">{r.outbound}</TableCell>
+                  <TableCell className="font-mono">{r.credential}</TableCell>
+                  <TableCell className="text-right tabular-nums">{formatBytes(r.uplink)}</TableCell>
+                  <TableCell className="text-right tabular-nums">{formatBytes(r.downlink)}</TableCell>
+                  <TableCell className="space-x-1 text-right whitespace-nowrap">
+                    <Button size="sm" variant="ghost" onClick={() => onPick('connections', r)}>
+                      {t('traffic.toConnections')}
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => onPick('limit', r)}>
+                      {t('traffic.toLimit')}
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => onPick('kick', r)}>
+                      {t('traffic.toKick')}
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
   )
 }
 

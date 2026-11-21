@@ -1,10 +1,11 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { opsServer, page, query } from '@/test/ops'
 import { renderApp } from '@/test/render'
 import { adminAccount, type FakeCall } from '@/test/server'
+import { dashboardFrame, dashboardServer, FakeWebSocket } from '@/test/websocket'
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -280,5 +281,88 @@ describe('服务器列表页：批量升级', () => {
     expect(jp.getByText('中止')).toBeTruthy()
     expect(jp.getByText(/批量升级已中止/)).toBeTruthy()
     expect(dialog.getByText('成功 0 台，失败 1 台，中止 1 台')).toBeTruthy()
+  })
+})
+
+// web-console「服务器页」列表页的实时推送（m2-14）。
+describe('服务器列表页：实时推送', () => {
+  const lists = (calls: FakeCall[]) => calls.filter((c) => c.url.split('?')[0] === '/api/v1/server').length
+
+  it('推送连上后按帧显示卡片、台数与总网速，写明实时推送，不再定时请求 server list', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      const calls = opsServer({ 'GET /api/v1/server': page([summary('hk-1', 'pending')]) })
+      renderApp('/servers')
+      await screen.findByTestId('server-hk-1')
+      expect(screen.getByTestId('feed-mode').textContent).toBe('定时刷新（每 10 秒）')
+      act(() => FakeWebSocket.latest().push(dashboardFrame([dashboardServer('hk-1', { current_upload_speed: 2048, current_download_speed: 1024 * 1024 })])))
+      expect(screen.getByTestId('feed-mode').textContent).toBe('实时推送')
+      expect(within(screen.getByTestId('server-hk-1')).getByText('在线')).toBeTruthy()
+      expect(screen.getByTestId('speed-hk-1').textContent).toBe('↑ 2.0 KB/s ↓ 1.0 MB/s')
+      expect(screen.getByTestId('count-online').textContent).toBe('在线 1')
+      expect(screen.getByTestId('total-speed').textContent).toBe('总计 ↑ 2.0 KB/s ↓ 1.0 MB/s')
+      const before = lists(calls)
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(12_000) // 大于 10 秒的刷新间隔，小于 15 秒的推送超时
+      })
+      expect(lists(calls)).toBe(before)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('推送断开：马上重新请求 server list，新结果回来之前继续显示最后一帧；之后每 10 秒请求，并在稍后重连推送', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      let reply = page([summary('hk-1', 'pending')])
+      const calls = opsServer({ 'GET /api/v1/server': () => reply })
+      renderApp('/servers')
+      await screen.findByTestId('server-hk-1')
+      act(() => FakeWebSocket.latest().push(dashboardFrame([dashboardServer('hk-1'), dashboardServer('jp-22')])))
+      expect(screen.getByTestId('server-jp-22')).toBeTruthy()
+      reply = page([summary('hk-1', 'offline')])
+      const before = lists(calls)
+      act(() => FakeWebSocket.latest().serverClose())
+      expect(screen.getByTestId('feed-mode').textContent).toBe('定时刷新（每 10 秒）')
+      // 断开的那一刻不闪回打开页面时的旧列表（hk-1 等待首次连接、没有 jp-22）
+      expect(within(screen.getByTestId('server-hk-1')).queryByText('等待首次连接')).toBeNull()
+      expect(screen.getByTestId('server-jp-22')).toBeTruthy()
+      await waitFor(() => expect(lists(calls)).toBe(before + 1))
+      expect(await within(screen.getByTestId('server-hk-1')).findByText('离线')).toBeTruthy()
+      expect(screen.queryByTestId('server-jp-22')).toBeNull()
+      const sockets = FakeWebSocket.instances.length
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(10_500)
+      })
+      expect(lists(calls)).toBeGreaterThan(before + 1)
+      expect(FakeWebSocket.instances.length).toBeGreaterThan(sockets)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('推送连着时仍每 60 秒请求一次 server list（及时发现会话失效），显示仍按推送', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      const calls = opsServer({ 'GET /api/v1/server': page([summary('hk-1', 'pending')]) })
+      renderApp('/servers')
+      await screen.findByTestId('server-hk-1')
+      act(() => FakeWebSocket.latest().push(dashboardFrame([dashboardServer('hk-1')], 30_000)))
+      const before = lists(calls)
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(61_000)
+      })
+      expect(lists(calls)).toBe(before + 1)
+      expect(screen.getByTestId('feed-mode').textContent).toBe('实时推送')
+      expect(within(screen.getByTestId('server-hk-1')).getByText('在线')).toBeTruthy()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('没有推送时卡片上的网速来自 server list', async () => {
+    opsServer({ 'GET /api/v1/server': page([summary('hk-1', 'connected', { current_upload_speed: 512, current_download_speed: 0 })]) })
+    renderApp('/servers')
+    expect((await screen.findByTestId('speed-hk-1')).textContent).toBe('↑ 512 B/s ↓ 0 B/s')
   })
 })

@@ -17,7 +17,16 @@ const overviewServer = (servers: object, account: object = adminAccount) =>
     'GET /api/v1/server/get/hk-1': { status: 404, body: { code: 'not_found', reason: '没有这台服务器', state: {}, next: '' } },
   })
 
-const summary = (name: string, status: string, ip: string | null) => ({ id: name.length, name, connection_mode: 'auto', status, last_heartbeat: null, ip_address: ip, ip_address_v6: '' })
+const summary = (name: string, status: string, ip: string | null, speed: object = {}) => ({
+  id: name.length,
+  name,
+  connection_mode: 'auto',
+  status,
+  last_heartbeat: null,
+  ip_address: ip,
+  ip_address_v6: '',
+  ...speed,
+})
 
 // web-console「总览首页」。
 describe('总览首页', () => {
@@ -36,7 +45,10 @@ describe('总览首页', () => {
 
   it('服务器分区列出服务器：名字进详情页，多于列出的条数时有查看全部', async () => {
     const user = userEvent.setup()
-    overviewServer({ items: [summary('hk-1', 'connected', '203.0.113.7'), summary('jp-2', 'pending', null)], total: 12 })
+    overviewServer({
+      items: [summary('hk-1', 'connected', '203.0.113.7', { current_upload_speed: 2048, current_download_speed: 1024 * 1024 }), summary('jp-2', 'pending', null)],
+      total: 12,
+    })
     const { router } = renderApp('/')
     const servers = await screen.findByTestId('partition-servers')
     await within(servers).findByText('12')
@@ -44,6 +56,8 @@ describe('总览首页', () => {
     expect(within(servers).getByText('等待首次连接')).toBeTruthy()
     expect(within(servers).getByText('203.0.113.7')).toBeTruthy()
     expect(within(servers).getByText('无地址')).toBeTruthy()
+    expect(within(servers).getByTestId('overview-speed-hk-1').textContent).toBe('↑ 2.0 KB/s ↓ 1.0 MB/s')
+    expect(within(servers).getByTestId('overview-speed-jp-2').textContent).toBe('↑ 0 B/s ↓ 0 B/s')
     expect(within(servers).getByRole('link', { name: '查看全部 12 台' }).getAttribute('href')).toBe('/servers')
     expect(within(servers).queryByText(/还没有服务器/)).toBeNull()
     await user.click(within(servers).getByRole('link', { name: 'hk-1' }))

@@ -2,7 +2,7 @@ import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { opsServer, page } from '@/test/ops'
+import { opsServer, page, query } from '@/test/ops'
 import { renderApp } from '@/test/render'
 
 afterEach(() => vi.unstubAllGlobals())
@@ -47,4 +47,21 @@ describe('长任务页', () => {
     await new Promise((r) => setTimeout(r, 2500))
     expect(calls.filter((c) => c.url.startsWith('/api/v1/job?')).length).toBe(lists) // 没有运行中的了，不再刷新
   }, 10000)
+})
+
+// web-console「长任务页」按服务器筛选（m2-14）。
+describe('长任务页：按服务器筛选', () => {
+  it('填服务器名并查询：请求带 server-name；为空时不带', async () => {
+    const user = userEvent.setup()
+    const calls = opsServer({
+      'GET /api/v1/job': (c) => (query(c).get('server-name') === 'hk-1' ? page([job('job-u', 'done', { kind: 'server update apply' })]) : page([job('job-b', 'done')])),
+    })
+    renderApp('/jobs')
+    expect(await screen.findByText('job-b')).toBeTruthy()
+    expect(query(calls.find((c) => c.url.startsWith('/api/v1/job'))!).has('server-name')).toBe(false)
+    await user.type(screen.getByRole('textbox', { name: '服务器' }), 'hk-1{Enter}')
+    expect(await screen.findByText('job-u')).toBeTruthy()
+    expect(screen.queryByText('job-b')).toBeNull()
+    expect(query(calls.filter((c) => c.url.startsWith('/api/v1/job?')).at(-1)!).get('server-name')).toBe('hk-1')
+  })
 })

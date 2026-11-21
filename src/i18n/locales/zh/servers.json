@@ -19,7 +19,13 @@
     "updateBatch": "批量升级节点",
     "uninstall": "卸载节点",
     "switchPorts": "切换节点端口",
-    "probeMaster": "探测主控地址"
+    "probeMaster": "探测主控地址",
+    "systemInfo": "读取系统信息",
+    "nics": "列出网卡",
+    "speed": "看实时网速",
+    "trafficStats": "改流量统计口径",
+    "logs": "查看节点日志",
+    "logFiles": "列出日志文件"
   },
   "statuses": {
     "pending": "等待首次连接",
@@ -50,7 +56,9 @@
     "lastPullAt": "最近一次轮询",
     "sameHost": "与主控同机",
     "sameHostYes": "是",
-    "sameHostNo": "否"
+    "sameHostNo": "否",
+    "speed": "网速",
+    "speedValue": "↑ {{up}} ↓ {{down}}"
   },
   "list": {
     "online": "在线 {{count}}",
@@ -58,7 +66,10 @@
     "total": "共 {{count}} 台",
     "partial": "台数只算了已加载的部分",
     "empty": "还没有服务器。点「添加服务器」，再在详情页取安装命令，到节点上执行。",
-    "loadMore": "加载更多"
+    "loadMore": "加载更多",
+    "live": "实时推送",
+    "polling": "定时刷新（每 10 秒）",
+    "totalSpeed": "总计 ↑ {{up}} ↓ {{down}}"
   },
   "add": {
     "title": "添加服务器",
@@ -102,7 +113,9 @@
       "connections": "连接",
       "limit": "限速",
       "kick": "踢线",
-      "maintenance": "维护"
+      "maintenance": "维护",
+      "system": "系统",
+      "logs": "日志"
     }
   },
   "credentials": {
@@ -300,5 +313,90 @@
     "confirmTitle": "卸载 {{name}} 上的 satchel-agent",
     "confirmDescription": "会删掉节点上的 satchel-agent 程序、服务与配置和状态目录，节点上的代理随之停止。主控里的服务器记录保留，并标为离线。Docker 里的节点不能这样卸载，要停掉并删掉容器。要连回来，得用安装命令重装。",
     "done": "已安排卸载（{{time}}），服务器已标为离线。"
+  },
+  "system": {
+    "title": "系统信息",
+    "description": "经通道问节点，点「读取」才请求；结果留在这一页，再点一次重新读取。",
+    "read": "读取",
+    "hostname": "主机名",
+    "os": "系统",
+    "kernel": "内核",
+    "arch": "架构",
+    "uptime": "运行时长",
+    "uptimeValue": "{{d}} 天 {{h}} 小时 {{m}} 分",
+    "cpu": "CPU",
+    "cpuValue": "{{model}}（{{cores}} 核 {{threads}} 线程）",
+    "cpuPct": "CPU 使用率",
+    "load": "负载（1 / 5 / 15 分钟）",
+    "memory": "内存",
+    "disk": "磁盘",
+    "usage": "已用 {{used}} / 共 {{total}}",
+    "tfo": "TCP Fast Open",
+    "agentVersion": "satchel-agent 版本",
+    "inDocker": "在 Docker 里",
+    "collectedAt": "采集时间",
+    "yes": "是",
+    "no": "否",
+    "nics": "网卡",
+    "nicName": "网卡",
+    "addresses": "地址",
+    "scopes": {
+      "global": "公网",
+      "private": "内网",
+      "ula": "IPv6 内网（ULA）"
+    }
+  },
+  "logs": {
+    "description": "经通道问节点，条件改了点「查询」才生效；只读，不能删除或清空。agent 与内核的日志可以按文件看，nginx 没有文件可选。",
+    "service": "来源",
+    "services": {
+      "agent": "satchel-agent",
+      "core": "内核",
+      "nginx": "nginx"
+    },
+    "level": "级别",
+    "levels": {
+      "all": "全部",
+      "debug": "debug 及以上",
+      "info": "info 及以上",
+      "warn": "warn 及以上",
+      "error": "error"
+    },
+    "grep": "关键字（区分大小写）",
+    "file": "文件",
+    "fileHint": "不选就看正在写的那个",
+    "noFileForNginx": "nginx 没有文件可选",
+    "clearFile": "清除",
+    "search": "查询",
+    "files": "日志文件",
+    "fileName": "文件名",
+    "fileSize": "大小",
+    "fileModified": "修改时间",
+    "active": "正在写入",
+    "empty": "没有符合条件的日志。",
+    "loadMore": "加载更多"
+  },
+  "trafficStats": {
+    "title": "流量统计口径",
+    "description": "决定这台服务器怎么计流量：算哪个方向、用内核统计还是物理网卡、是否计入汇总。保存时只发改过的项。",
+    "mode": "方向",
+    "modes": {
+      "both": "上下行合计",
+      "upload": "只算上行",
+      "download": "只算下行",
+      "max": "取上下行较大的一边"
+    },
+    "source": "数据源",
+    "sources": {
+      "core": "内核统计",
+      "system": "物理网卡"
+    },
+    "include": "计入流量汇总",
+    "systemCycle": "本周期物理网卡",
+    "systemCycleValue": "接收 {{rx}}，发送 {{tx}}",
+    "systemUpdatedAt": "物理网卡数据更新于",
+    "save": "保存口径",
+    "saved": "已保存流量统计口径",
+    "conflict": "别人刚改过这台服务器。请重新读取，看过最新的值后再改。"
   }
 }

@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { run } from '@/api/client'
@@ -19,14 +19,17 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { formatTime } from '@/lib/format'
+import { useDashboardFeed } from '@/lib/dashboard'
+import { formatSpeed, formatTime } from '@/lib/format'
 
 import { ChannelSelect, UpdateResults, type Channel, type UpdateCheckList, type UpdateTargetResult } from './-update'
 
 export const Route = createFileRoute('/_app/servers/')({ component: ServersPage })
 
-// REFRESH_MS 是列表的自动刷新间隔（design 第 3 条）；PAGE_LIMIT 是主控允许的单页上限（design 第 4 条）。
+// REFRESH_MS 是推送没连上时列表的自动刷新间隔（m2-07 design 第 3 条）；PAGE_LIMIT 是主控允许的单页上限（m2-07 design 第 4 条）。
+// LIVE_CHECK_MS 是推送连着时仍请求 server list 的间隔：推送只在握手时核对身份，靠它及时发现会话失效（m2-14 审查补充）。
 const REFRESH_MS = 10_000
+const LIVE_CHECK_MS = 60_000
 const PAGE_LIMIT = 500
 
 // 服务器列表页（web-console「服务器页」）。
@@ -43,16 +46,28 @@ function ServerList() {
   const { t } = useTranslation('servers')
   const [adding, setAdding] = useState(false)
   const [updating, setUpdating] = useState(false)
+  // 推送连上时整页按最新一帧显示（帧里有全部服务器），server list 只每 60 秒请求一次；断开时回到每 10 秒请求（m2-14 design 第 2 条）。
+  // 断开的那一刻马上重新请求一次，新结果回来之前继续显示最后一帧，不会闪回打开页面时的旧列表。
+  const feed = useDashboardFeed()
   const list = useInfiniteQuery({
     queryKey: ['server list'],
     queryFn: ({ pageParam }) => run<Page<ServerSummary>>('server list', { limit: PAGE_LIMIT, cursor: pageParam }),
     initialPageParam: '',
     getNextPageParam: (last) => last.nextCursor || undefined,
-    refetchInterval: REFRESH_MS,
+    refetchInterval: feed.live ? LIVE_CHECK_MS : REFRESH_MS,
   })
-  const items = list.data?.pages.flatMap((p) => p.items) ?? []
-  const total = list.data?.pages[0]?.total ?? 0
-  const count = (status: string) => items.filter((s) => s.status === status).length
+  const { refetch } = list
+  const hadFrame = feed.frame !== null
+  useEffect(() => {
+    if (!feed.live && hadFrame) void refetch()
+  }, [feed.live, hadFrame, refetch])
+  const frame = feed.frame && (feed.live || feed.receivedAt > list.dataUpdatedAt) ? feed.frame : null
+  const restItems = list.data?.pages.flatMap((p) => p.items) ?? []
+  const items: ServerSummary[] = frame ? frame.servers : restItems
+  const total = frame ? frame.summary.total_servers : (list.data?.pages[0]?.total ?? 0)
+  const count = (status: string) => restItems.filter((s) => s.status === status).length
+  const online = frame ? frame.summary.connected_servers : count('connected')
+  const offline = frame ? frame.summary.offline_servers : count('offline')
   return (
     <div className="grid gap-4">
       <div className="flex flex-wrap items-center gap-2">
@@ -61,24 +76,32 @@ function ServerList() {
           {t('batch.open')}
         </Button>
         <div className="ml-auto flex flex-wrap items-center gap-2 text-sm">
+          <Badge variant={feed.live ? 'default' : 'secondary'} data-testid="feed-mode">
+            {feed.live ? t('list.live') : t('list.polling')}
+          </Badge>
           <Badge variant="outline" data-testid="count-online">
-            {t('list.online', { count: count('connected') })}
+            {t('list.online', { count: online })}
           </Badge>
           <Badge variant="outline" data-testid="count-offline">
-            {t('list.offline', { count: count('offline') })}
+            {t('list.offline', { count: offline })}
           </Badge>
           <span className="text-muted-foreground">{t('list.total', { count: total })}</span>
-          {list.hasNextPage && <span className="text-muted-foreground">{t('list.partial')}</span>}
+          {frame && (
+            <span className="text-muted-foreground" data-testid="total-speed">
+              {t('list.totalSpeed', { up: formatSpeed(frame.summary.total_upload_speed), down: formatSpeed(frame.summary.total_download_speed) })}
+            </span>
+          )}
+          {!frame && list.hasNextPage && <span className="text-muted-foreground">{t('list.partial')}</span>}
         </div>
       </div>
       <ErrorNotice error={list.error} />
-      {items.length === 0 && list.isSuccess && <p className="text-muted-foreground text-sm">{t('list.empty')}</p>}
+      {items.length === 0 && (frame !== null || list.isSuccess) && <p className="text-muted-foreground text-sm">{t('list.empty')}</p>}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {items.map((s) => (
           <ServerCard key={s.id} server={s} />
         ))}
       </div>
-      {list.hasNextPage && (
+      {!frame && list.hasNextPage && (
         <Button variant="outline" className="justify-self-center" onClick={() => void list.fetchNextPage()}>
           {t('list.loadMore')}
         </Button>
@@ -109,6 +132,10 @@ function ServerCard({ server: s }: { server: ServerSummary }) {
             <dd className="font-mono break-all">{s.ip_address_v6 || none}</dd>
             <dt className="text-muted-foreground">{t('fields.lastHeartbeat')}</dt>
             <dd>{s.last_heartbeat ? formatTime(s.last_heartbeat) : t('fields.noHeartbeat')}</dd>
+            <dt className="text-muted-foreground">{t('fields.speed')}</dt>
+            <dd className="tabular-nums" data-testid={`speed-${s.name}`}>
+              {t('fields.speedValue', { up: formatSpeed(s.current_upload_speed ?? 0), down: formatSpeed(s.current_download_speed ?? 0) })}
+            </dd>
           </dl>
         </CardContent>
       </Card>

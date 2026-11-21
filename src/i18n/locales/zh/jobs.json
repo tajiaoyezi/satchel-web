@@ -25,5 +25,8 @@
     "truncated": "结果超过 64 KiB，已截断，后面的部分没有保存。",
     "progress": "进度",
     "noOutput": "还没有结果"
-  }
+  },
+  "serverFilter": "服务器",
+  "serverFilterHint": "按服务器名筛选",
+  "search": "查询"
 }

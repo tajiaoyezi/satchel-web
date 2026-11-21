@@ -1,10 +1,11 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { opsServer, query } from '@/test/ops'
 import { renderApp } from '@/test/render'
 import type { FakeCall, FakeReply } from '@/test/server'
+import { dashboardFrame, dashboardServer, FakeWebSocket } from '@/test/websocket'
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -209,6 +210,57 @@ describe('服务器详情页', () => {
     base()
     renderApp('/servers/hk-1')
     expect((await screen.findByText('与主控同机')).nextElementSibling?.textContent).toBe('否')
+  })
+
+  it('实时网速：没有推送时来自 server speed；推送连上后取推送里这台服务器的值', async () => {
+    const calls = base({ 'GET /api/v1/server/speed/hk-1': { body: { server: 'hk-1', upload_speed: 512, download_speed: 2048, updated_at: null } } })
+    renderApp('/servers/hk-1')
+    await waitFor(() => expect(screen.getByTestId('overview-speed').textContent).toBe('↑ 512 B/s ↓ 2.0 KB/s'))
+    expect(calls.some((c) => c.url === '/api/v1/server/speed/hk-1')).toBe(true)
+    act(() => FakeWebSocket.latest().push(dashboardFrame([dashboardServer('jp-2'), dashboardServer('hk-1', { current_upload_speed: 1024 * 1024, current_download_speed: 0 })])))
+    expect(screen.getByTestId('overview-speed').textContent).toBe('↑ 1.0 MB/s ↓ 0 B/s')
+  })
+
+  it('推送断开后：server speed 回来之前继续显示最后一帧的网速，回来之后用它', async () => {
+    let release: () => void = () => {}
+    const gate = new Promise<void>((r) => (release = r))
+    base({ 'GET /api/v1/server/speed/hk-1': { body: { server: 'hk-1', upload_speed: 7, download_speed: 7, updated_at: null } } })
+    renderApp('/servers/hk-1')
+    await waitFor(() => expect(screen.getByTestId('overview-speed').textContent).toBe('↑ 7 B/s ↓ 7 B/s'))
+    act(() => FakeWebSocket.latest().push(dashboardFrame([dashboardServer('hk-1', { current_upload_speed: 100, current_download_speed: 200 })])))
+    expect(screen.getByTestId('overview-speed').textContent).toBe('↑ 100 B/s ↓ 200 B/s')
+    const fetchMock = vi.mocked(fetch)
+    const real = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url, init) => {
+      if (String(url) === '/api/v1/server/speed/hk-1') {
+        await gate
+        return new Response(JSON.stringify({ server: 'hk-1', upload_speed: 300, download_speed: 400, updated_at: null }), { status: 200 })
+      }
+      return real(url, init)
+    })
+    act(() => FakeWebSocket.latest().serverClose())
+    expect(screen.getByTestId('overview-speed').textContent).toBe('↑ 100 B/s ↓ 200 B/s')
+    release()
+    await waitFor(() => expect(screen.getByTestId('overview-speed').textContent).toBe('↑ 300 B/s ↓ 400 B/s'))
+  })
+
+  it('推送连上后不再请求 server speed', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      const calls = base({ 'GET /api/v1/server/speed/hk-1': { body: { server: 'hk-1', upload_speed: 1, download_speed: 1, updated_at: null } } })
+      renderApp('/servers/hk-1')
+      await waitFor(() => expect(FakeWebSocket.instances).toHaveLength(1))
+      act(() => FakeWebSocket.latest().push(dashboardFrame([dashboardServer('hk-1', { current_upload_speed: 100, current_download_speed: 200 })])))
+      await waitFor(() => expect(screen.getByTestId('overview-speed').textContent).toBe('↑ 100 B/s ↓ 200 B/s'))
+      const speeds = () => calls.filter((c) => c.url === '/api/v1/server/speed/hk-1').length
+      const before = speeds()
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(12_000) // 大于 10 秒的刷新间隔，小于 15 秒的推送超时
+      })
+      expect(speeds()).toBe(before)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('服务器不存在：显示主控的 not_found', async () => {

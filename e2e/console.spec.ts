@@ -6,7 +6,7 @@ import { Secret, TOTP } from 'otpauth'
 
 // 端到端测试（web-console「网页的测试」）：对一个空库的主控按顺序跑向导、两步验证、两步登录、令牌新建与吊销、
 // 改品牌后的登录页、Turnstile 测试配置与登录，然后是运维：上传 logo、日志、定时任务、生成与下载备份、长任务与审计、
-// 封禁与解封，然后是服务器页，最后是维护页与主控地址迁移（迁移会改主控地址并清空 Turnstile 的 key，必须是最后一步）。恢复备份、数据库迁移与升级会让主控退出（这里没有服务管理器把它拉起来），不在这里跑。
+// 封禁与解封，然后是服务器页（含实时推送、系统、日志与流量统计口径），最后是维护页与主控地址迁移（迁移会改主控地址并清空 Turnstile 的 key，必须是最后一步）。恢复备份、数据库迁移与升级会让主控退出（这里没有服务管理器把它拉起来），不在这里跑。
 // 各步共用一个浏览器页面与账号，所以串行。每一步结束时核对页面上没有 CSP 违规（securitypolicyviolation）与未处理的脚本错误（pageerror）。
 
 const admin = { username: 'admin', password: 'e2e-pass-1234' }
@@ -332,6 +332,37 @@ test('服务器页：以 pull 模式添加服务器，总览里看到它，取�
   await creds.getByRole('button', { name: '轮换' }).click()
   await page.getByRole('alertdialog').getByRole('button', { name: '确认' }).click()
   await expect(creds.getByRole('alert')).toBeVisible()
+})
+
+// m2-14：列表页的实时推送（同时验证推送能过 CSP、会话 Cookie 与同源检查）；节点没有连上，系统与日志看到主控的错误；
+// 流量统计口径只写库，不要求节点在线。
+test('服务器页：列表页是实时推送，系统与日志看到错误，改流量统计口径', async () => {
+  await page.goto('/servers')
+  await expect(page.getByTestId('feed-mode')).toHaveText('实时推送')
+  await expect(page.getByTestId('server-e2e-node')).toBeVisible()
+
+  await page.goto('/servers/e2e-node')
+  await page.getByRole('tab', { name: '系统' }).click()
+  const system = page.getByRole('tabpanel', { name: '系统' })
+  await system.getByRole('button', { name: '读取' }).click()
+  await expect(system.getByRole('alert')).toHaveCount(2)
+  await expect(system.getByTestId('system-info')).toHaveCount(0)
+
+  await page.getByRole('tab', { name: '日志' }).click()
+  const logs = page.getByRole('tabpanel', { name: '日志' })
+  await logs.getByRole('button', { name: '查询' }).click()
+  await expect(logs.getByRole('alert')).toHaveCount(1)
+  await expect(logs.getByTestId('log-lines')).toHaveCount(0)
+
+  await page.getByRole('tab', { name: '流量' }).click()
+  const stats = page.getByRole('tabpanel', { name: '流量' }).getByTestId('traffic-stats')
+  // 新服务器的数据源默认是物理网卡（system）：改成内核统计，物理网卡的周期累计随之不再显示
+  await expect(stats.getByText('本周期物理网卡')).toBeVisible()
+  await stats.getByRole('combobox', { name: '数据源' }).click()
+  await page.getByRole('option', { name: '内核统计' }).click()
+  await stats.getByRole('button', { name: '保存口径' }).click()
+  await expect(stats.getByText('本周期物理网卡')).toHaveCount(0)
+  await expect(stats.getByRole('definition').filter({ hasText: '内核统计' })).toBeVisible()
 })
 
 // 主控地址迁移会改主控地址并清空 Turnstile 的 key：这一条必须是整套测试的最后一步，以后加的测试放在它前面。

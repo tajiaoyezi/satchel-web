@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { run } from '@/api/client'
@@ -11,6 +11,7 @@ import { JobStatus, ProgressFields } from '@/components/JobProgress'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { formatTime } from '@/lib/format'
@@ -35,10 +36,14 @@ function JobsPage() {
 function JobsBody() {
   const { t } = useTranslation('jobs')
   const [status, setStatus] = useState<(typeof STATUSES)[number]>('all')
+  // 按服务器筛选（job list 的 server-name，m2-14 design 第 8 条）：回车或点「查询」才生效，为空时不发
+  const [serverInput, setServerInput] = useState('')
+  const [serverName, setServerName] = useState('')
   const [open, setOpen] = useState<string | null>(null)
   const list = useInfiniteQuery({
-    queryKey: ['job list', status],
-    queryFn: ({ pageParam }) => run<Page<Job>>('job list', { flags: { status: status === 'all' ? undefined : status }, limit: 50, cursor: pageParam }),
+    queryKey: ['job list', status, serverName],
+    queryFn: ({ pageParam }) =>
+      run<Page<Job>>('job list', { flags: { status: status === 'all' ? undefined : status, 'server-name': serverName || undefined }, limit: 50, cursor: pageParam }),
     initialPageParam: '',
     getNextPageParam: (last) => last.nextCursor || undefined,
     refetchInterval: (q) => (q.state.data?.pages.some((p) => p.items.some(running)) ? 2000 : false),
@@ -48,18 +53,32 @@ function JobsBody() {
     <Card className="shadow-flat">
       <CardHeader className="grid gap-3">
         <CardDescription>{t('description')}</CardDescription>
-        <Select value={status} onValueChange={(v) => setStatus(v as (typeof STATUSES)[number])}>
-          <SelectTrigger aria-label={t('statusFilter')} className="w-36">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {STATUSES.map((s) => (
-              <SelectItem key={s} value={s}>
-                {s === 'all' ? t('allStatuses') : t(`job.statuses.${s}`, { ns: 'common' })}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex flex-wrap items-center gap-2">
+          <Select value={status} onValueChange={(v) => setStatus(v as (typeof STATUSES)[number])}>
+            <SelectTrigger aria-label={t('statusFilter')} className="w-36">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {STATUSES.map((s) => (
+                <SelectItem key={s} value={s}>
+                  {s === 'all' ? t('allStatuses') : t(`job.statuses.${s}`, { ns: 'common' })}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <form
+            className="flex items-center gap-2"
+            onSubmit={(e: FormEvent) => {
+              e.preventDefault()
+              setServerName(serverInput.trim())
+            }}
+          >
+            <Input aria-label={t('serverFilter')} placeholder={t('serverFilterHint')} className="w-48" value={serverInput} onChange={(e) => setServerInput(e.target.value)} />
+            <Button type="submit" variant="outline">
+              {t('search')}
+            </Button>
+          </form>
+        </div>
       </CardHeader>
       <CardContent className="grid gap-3">
         <ErrorNotice error={list.error} />
