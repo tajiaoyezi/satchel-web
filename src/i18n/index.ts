@@ -4,6 +4,7 @@ import { initReactI18next } from 'react-i18next'
 import account from './locales/zh/account.json'
 import audit from './locales/zh/audit.json'
 import backups from './locales/zh/backups.json'
+import changes from './locales/zh/changes.json'
 import common from './locales/zh/common.json'
 import database from './locales/zh/database.json'
 import jobs from './locales/zh/jobs.json'
@@ -19,7 +20,7 @@ import tokens from './locales/zh/tokens.json'
 import update from './locales/zh/update.json'
 
 // 界面文案全部在资源文件里（web-console「文案与 i18n」）：本站只有中文，英文随 M9 补上 en 资源与语言切换。
-export const resources = { zh: { common, login, setup, overview, servers, account, tokens, settings, logs, schedule, jobs, audit, security, backups, database, update } } as const
+export const resources = { zh: { common, login, setup, overview, servers, account, tokens, settings, logs, schedule, jobs, changes, audit, security, backups, database, update } } as const
 
 declare module 'i18next' {
   interface CustomTypeOptions {

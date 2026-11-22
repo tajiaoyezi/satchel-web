@@ -3,7 +3,7 @@ import type { SessionEntry } from './api/session-entries'
 
 // 页面清单（master-web「页面清单与命令表一致」）：每一页的「可见操作 → CLI 命令」对照表。页面上能点的每个操作都要在这里，
 // 写对应的命令，或者会话入口；文案写资源文件里的 key（命名空间:路径），构建时换成中文写进 dist/satchel-web.json。
-// m1-11 交付前六页，m1-12 加八个运维页，m2-07 加服务器页（详情页 /servers/<名字> 属于同一页），m2-10 加节点维护与主控地址迁移，m2-14 加系统信息、网速、日志与流量统计口径。人类专属命令的错误提示取第一个提供它的页面（master-web），所以这几条只写在它们本来的那一页。
+// m1-11 交付前六页，m1-12 加八个运维页，m2-07 加服务器页（详情页 /servers/<名字> 属于同一页），m2-10 加节点维护与主控地址迁移，m2-14 加系统信息、网速、日志与流量统计口径，m2-16 加服务器编辑、节点配置、配置变更页与批量门控。人类专属命令的错误提示取第一个提供它的页面（master-web），所以这几条只写在它们本来的那一页。
 export interface ActionDef {
   labelKey: string
   command?: CommandName
@@ -88,6 +88,12 @@ export const pages: PageDef[] = [
       { labelKey: 'servers:actions.trafficStats', command: 'server traffic-stats set' },
       { labelKey: 'servers:actions.logs', command: 'server logs list' },
       { labelKey: 'servers:actions.logFiles', command: 'server logs files' },
+      { labelKey: 'servers:actions.configStatus', command: 'server config status' },
+      { labelKey: 'servers:actions.configFiles', command: 'server config files' },
+      { labelKey: 'servers:actions.configRead', command: 'server config read' },
+      { labelKey: 'servers:actions.configTest', command: 'server config test' },
+      { labelKey: 'servers:actions.plan', command: 'plan' },
+      { labelKey: 'servers:actions.apply', command: 'apply' },
     ],
   },
   {
@@ -111,6 +117,7 @@ export const pages: PageDef[] = [
       { labelKey: 'settings:actions.saveBranding', command: 'settings set' },
       { labelKey: 'settings:actions.saveMasterUrl', command: 'settings master-url set' },
       { labelKey: 'settings:actions.migrateMasterUrl', command: 'settings master-url migrate' },
+      { labelKey: 'settings:actions.batchThreshold', command: 'settings batch-threshold set' },
       { labelKey: 'settings:actions.saveGates', command: 'settings gates set' },
       { labelKey: 'settings:actions.uploadImage', command: 'settings image upload' },
       { labelKey: 'settings:actions.testTurnstile', command: 'settings turnstile test' },
@@ -144,6 +151,20 @@ export const pages: PageDef[] = [
     actions: [
       { labelKey: 'jobs:actions.list', command: 'job list' },
       { labelKey: 'jobs:actions.detail', command: 'job get' },
+    ],
+  },
+  {
+    id: 'changes',
+    path: '/changes',
+    titleKey: 'changes:title',
+    actions: [
+      { labelKey: 'changes:actions.plansList', command: 'plans list' },
+      { labelKey: 'changes:actions.plansGet', command: 'plans get' },
+      { labelKey: 'changes:actions.plan', command: 'plan' },
+      { labelKey: 'changes:actions.apply', command: 'apply' },
+      { labelKey: 'changes:actions.snapshotList', command: 'snapshot list' },
+      { labelKey: 'changes:actions.snapshotGet', command: 'snapshot get' },
+      { labelKey: 'changes:actions.snapshotRollback', command: 'snapshot rollback' },
     ],
   },
   {

@@ -62,6 +62,7 @@ const GATE_NUMBERS = [
   'brute_force_block_minutes',
 ] as const
 const GATE_TEXTS = ['turnstile_site_key', 'turnstile_secret_key', 'trusted_proxies'] as const
+const BATCH_FIELDS = ['batch_single_threshold', 'batch_window_threshold', 'batch_window_minutes'] as const
 
 type Values = Record<string, unknown>
 
@@ -98,6 +99,7 @@ function SettingsBody() {
       <MigrateCard />
       <GatesCard key={keyOf([...GATE_SWITCHES, ...GATE_NUMBERS, ...GATE_TEXTS])} values={values} />
       <UpdateCdnCard enabled={values.update_cdn_enabled === true} />
+      <BatchCard key={keyOf(BATCH_FIELDS)} values={values} />
       <SnapshotsCard />
     </>
   )
@@ -441,6 +443,37 @@ function MigrationNodes({ nodes }: { nodes: MigrationNode[] }) {
         ))}
       </TableBody>
     </Table>
+  )
+}
+
+// BatchCard 是批量门控的三个阈值（m2-16 design 第 9 条）：每项单独保存，危险类「权限」，确认值是设置项名，带读到的 resourceVersion。
+function BatchCard({ values }: { values: Values }) {
+  const { t } = useTranslation('settings')
+  const dialogs = useDialogs()
+  const [vals, setVals] = useState<Record<string, string>>(() => Object.fromEntries(BATCH_FIELDS.map((f) => [f, str(values[f])])))
+  const write = useSettingsWrite()
+  const save = async (key: (typeof BATCH_FIELDS)[number]) => {
+    const ok = await dialogs.confirm({ title: t('batch.confirmTitle', { label: t(`batch.fields.${key}`) }), description: t('batch.confirmDescription'), value: key, destructive: true })
+    if (!ok) return
+    const value = (vals[key] ?? '').trim()
+    write.mutate((rv) => run<SettingsObject>('settings batch-threshold set', { args: [key, value], flags: { 'resource-version': rv }, confirm: key }))
+  }
+  return (
+    <Section title={t('batch.title')} description={t('batch.description')}>
+      <div className="grid gap-3">
+        {BATCH_FIELDS.map((f) => (
+          <div key={f} className="flex flex-wrap items-end gap-2" data-testid={`batch-${f}`}>
+            <Field id={f} label={t(`batch.fields.${f}`)}>
+              <Input id={f} className="w-40" type="number" inputMode="numeric" value={vals[f]} onChange={(e) => setVals({ ...vals, [f]: e.target.value })} />
+            </Field>
+            <Button type="button" variant="outline" disabled={write.isPending || !(vals[f] ?? '').trim() || vals[f] === str(values[f])} onClick={() => void save(f)}>
+              {t('batch.save')}
+            </Button>
+          </div>
+        ))}
+        <WriteError write={write} />
+      </div>
+    </Section>
   )
 }
 

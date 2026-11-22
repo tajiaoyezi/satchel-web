@@ -24,6 +24,8 @@ import { useDashboardFeed, type DashboardFeed } from '@/lib/dashboard'
 import { formatBytes, formatSpeed, formatTime } from '@/lib/format'
 
 import { Maintenance } from './-maintenance'
+import { ConfigTab } from './-config'
+import { EditTab } from './-edit'
 import { DEFAULT_PORTS, Fields, REFRESH_MS, serverQuery } from './-shared'
 import { LogsTab, SystemTab, TrafficStats, type TrafficStatsView } from './-telemetry'
 
@@ -90,7 +92,7 @@ interface RestartResult {
   inbounds: string[]
 }
 
-type Tab = 'overview' | 'credentials' | 'traffic' | 'connections' | 'limit' | 'kick' | 'system' | 'logs' | 'maintenance'
+type Tab = 'overview' | 'credentials' | 'traffic' | 'connections' | 'limit' | 'kick' | 'system' | 'logs' | 'config' | 'edit' | 'maintenance'
 type FormTab = 'connections' | 'limit' | 'kick'
 
 // Target 是从流量表的一行带到连接、限速、踢线某一页的入站与凭据。三页各有一份：点哪个入口只重建哪一页，
@@ -140,7 +142,8 @@ function ServerDetail({ name }: { name: string }) {
         </div>
       </div>
       <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
-        <TabsList>
+        {/* 标签页有十一个：标签栏允许换行（m2-16 design 第 7 条） */}
+        <TabsList className="h-auto flex-wrap">
           <TabsTrigger value="overview">{t('detail.tabs.overview')}</TabsTrigger>
           <TabsTrigger value="credentials">{t('detail.tabs.credentials')}</TabsTrigger>
           <TabsTrigger value="traffic">{t('detail.tabs.traffic')}</TabsTrigger>
@@ -149,6 +152,8 @@ function ServerDetail({ name }: { name: string }) {
           <TabsTrigger value="kick">{t('detail.tabs.kick')}</TabsTrigger>
           <TabsTrigger value="system">{t('detail.tabs.system')}</TabsTrigger>
           <TabsTrigger value="logs">{t('detail.tabs.logs')}</TabsTrigger>
+          <TabsTrigger value="config">{t('detail.tabs.config')}</TabsTrigger>
+          <TabsTrigger value="edit">{t('detail.tabs.edit')}</TabsTrigger>
           <TabsTrigger value="maintenance">{t('detail.tabs.maintenance')}</TabsTrigger>
         </TabsList>
         <TabsContent value="overview" className="grid gap-4">
@@ -178,6 +183,13 @@ function ServerDetail({ name }: { name: string }) {
         </TabsContent>
         <TabsContent value="logs" forceMount hidden={tab !== 'logs'}>
           <LogsTab name={name} />
+        </TabsContent>
+        {/* 节点配置要问节点，点了才请求；编辑页的预演结果与删除后的恢复入口要留着：都保留挂载（m2-16 design 第 5、6 条） */}
+        <TabsContent value="config" forceMount hidden={tab !== 'config'}>
+          <ConfigTab name={name} />
+        </TabsContent>
+        <TabsContent value="edit" forceMount hidden={tab !== 'edit'}>
+          <EditTab name={name} />
         </TabsContent>
         {/* 维护页也保留挂载：升级是长任务，切走再回来进度与结果还在（m2-10 design 第 1 条） */}
         <TabsContent value="maintenance" forceMount hidden={tab !== 'maintenance'}>

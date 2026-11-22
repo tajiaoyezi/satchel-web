@@ -30,6 +30,7 @@ export const commands = {
   'settings rollback': { method: 'POST', path: '/api/v1/settings/rollback/{snapshot}' },
   'settings master-url set': { method: 'POST', path: '/api/v1/settings/master-url/set' },
   'settings master-url migrate': { method: 'POST', path: '/api/v1/settings/master-url/migrate' },
+  'settings batch-threshold set': { method: 'POST', path: '/api/v1/settings/batch-threshold/set/{key}/{value}' },
   'settings gates set': { method: 'POST', path: '/api/v1/settings/gates/set' },
   'settings update-cdn set': { method: 'POST', path: '/api/v1/settings/update-cdn/set/{enabled}' },
   'settings turnstile test': { method: 'POST', path: '/api/v1/settings/turnstile/test' },
@@ -80,6 +81,17 @@ export const commands = {
   'server traffic-stats set': { method: 'POST', path: '/api/v1/server/traffic-stats/set/{name}' },
   'server logs list': { method: 'GET', path: '/api/v1/server/logs/{name}', list: true },
   'server logs files': { method: 'GET', path: '/api/v1/server/logs/files/{name}', list: true },
+  'server config status': { method: 'GET', path: '/api/v1/server/config/status/{name}' },
+  'server config files': { method: 'GET', path: '/api/v1/server/config/files/{name}', list: true },
+  'server config read': { method: 'GET', path: '/api/v1/server/config/read/{name}' },
+  'server config test': { method: 'GET', path: '/api/v1/server/config/test/{name}' },
+  plan: { method: 'POST', path: '/api/v1/plan' },
+  apply: { method: 'POST', path: '/api/v1/apply' },
+  'plans list': { method: 'GET', path: '/api/v1/plans', list: true },
+  'plans get': { method: 'GET', path: '/api/v1/plans/get/{id}' },
+  'snapshot list': { method: 'GET', path: '/api/v1/snapshot', list: true },
+  'snapshot get': { method: 'GET', path: '/api/v1/snapshot/get/{id}' },
+  'snapshot rollback': { method: 'POST', path: '/api/v1/snapshot/rollback' },
 } as const satisfies Record<string, CommandRoute>
 
 export type CommandName = keyof typeof commands

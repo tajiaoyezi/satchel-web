@@ -193,11 +193,12 @@ describe('服务器详情页', () => {
   it('概况：显示状态、地址、心跳与内核，不显示令牌', async () => {
     base()
     renderApp('/servers/hk-1')
-    expect(await screen.findByText('203.0.113.7')).toBeTruthy()
-    expect(screen.getByText('在线')).toBeTruthy()
-    expect(screen.getByText('websocket')).toBeTruthy()
-    expect(screen.getByText('运行中')).toBeTruthy()
-    expect(screen.getByText('1.14.4')).toBeTruthy()
+    await screen.findByRole('tabpanel')
+    expect(await panel().findByText('203.0.113.7')).toBeTruthy()
+    expect(panel().getByText('在线')).toBeTruthy()
+    expect(panel().getByText('websocket')).toBeTruthy()
+    expect(panel().getByText('运行中')).toBeTruthy()
+    expect(panel().getByText('1.14.4')).toBeTruthy()
     expect(document.body.textContent).not.toContain('tok-should-not-show')
     expect(document.body.textContent).not.toContain('***')
   })
@@ -266,7 +267,8 @@ describe('服务器详情页', () => {
   it('服务器不存在：显示主控的 not_found', async () => {
     opsServer({ 'GET /api/v1/server/get/nope': fail(404, 'not_found', '没有服务器 "nope"') })
     renderApp('/servers/nope')
-    expect(await screen.findByText('没有服务器 "nope"')).toBeTruthy()
+    await screen.findByRole('tabpanel')
+    expect(await panel().findByText('没有服务器 "nope"')).toBeTruthy()
   })
 
   it('取安装命令：点了才请求，显示命令、主控地址与指纹，复制的是命令原文', async () => {

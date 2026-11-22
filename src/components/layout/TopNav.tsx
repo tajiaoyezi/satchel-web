@@ -20,11 +20,12 @@ import {
 import { useTheme } from '@/theme/ThemeProvider'
 import { IMPLEMENTED, THEMES, isThemeName, type Mode } from '@/theme/themes'
 
-// OPS_PAGES 是「运维」菜单里的八页，按这个顺序列；名字取各页资源文件里的标题。
+// OPS_PAGES 是「运维」菜单里的九页，按这个顺序列；名字取各页资源文件里的标题。
 const OPS_PAGES = [
   { to: '/logs', ns: 'logs' },
   { to: '/schedule', ns: 'schedule' },
   { to: '/jobs', ns: 'jobs' },
+  { to: '/changes', ns: 'changes' },
   { to: '/audit', ns: 'audit' },
   { to: '/security', ns: 'security' },
   { to: '/backups', ns: 'backups' },

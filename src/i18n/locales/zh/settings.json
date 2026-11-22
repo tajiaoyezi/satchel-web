@@ -10,7 +10,8 @@
     "updateCdn": "开关更新 CDN",
     "snapshots": "查看写前快照",
     "rollback": "回滚到快照",
-    "uploadImage": "上传 logo 或登录壁纸图片"
+    "uploadImage": "上传 logo 或登录壁纸图片",
+    "batchThreshold": "修改批量门控阈值"
   },
   "version": "当前版本 {{version}}",
   "conflict": "别人刚改过系统设置。请重新读取，看过最新的值后再改。",
@@ -119,5 +120,17 @@
     "rollbackTitle": "回滚到快照 {{id}}",
     "rollbackDescription": "把这份快照的内容写回系统设置；写回之前会先为当前的设置存一份快照。",
     "loadMore": "加载更多"
+  },
+  "batch": {
+    "title": "批量门控",
+    "description": "一个身份在窗口时间内累计的写操作超过窗口上限，或一次影响的对象超过单次上限时，要有「批量」危险类并确认数量。管理员的网页会话自带全部危险类，只需确认。改这里要「权限」危险类，确认值是设置项名。",
+    "fields": {
+      "batch_single_threshold": "单次上限",
+      "batch_window_threshold": "窗口上限",
+      "batch_window_minutes": "窗口分钟数"
+    },
+    "save": "保存",
+    "confirmTitle": "修改批量门控的{{label}}",
+    "confirmDescription": "阈值改大后，更多的批量写操作不用再确认数量；改小后，更少的操作就要确认。请输入设置项名确认。"
   }
 }

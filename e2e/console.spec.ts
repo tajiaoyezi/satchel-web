@@ -6,7 +6,7 @@ import { Secret, TOTP } from 'otpauth'
 
 // 端到端测试（web-console「网页的测试」）：对一个空库的主控按顺序跑向导、两步验证、两步登录、令牌新建与吊销、
 // 改品牌后的登录页、Turnstile 测试配置与登录，然后是运维：上传 logo、日志、定时任务、生成与下载备份、长任务与审计、
-// 封禁与解封，然后是服务器页（含实时推送、系统、日志与流量统计口径），最后是维护页与主控地址迁移（迁移会改主控地址并清空 Turnstile 的 key，必须是最后一步）。恢复备份、数据库迁移与升级会让主控退出（这里没有服务管理器把它拉起来），不在这里跑。
+// 封禁与解封，然后是服务器页（含实时推送、系统、日志与流量统计口径、编辑与节点配置）、配置变更页与批量门控，最后是维护页与主控地址迁移（迁移会改主控地址并清空 Turnstile 的 key，必须是最后一步）。恢复备份、数据库迁移与升级会让主控退出（这里没有服务管理器把它拉起来），不在这里跑。
 // 各步共用一个浏览器页面与账号，所以串行。每一步结束时核对页面上没有 CSP 违规（securitypolicyviolation）与未处理的脚本错误（pageerror）。
 
 const admin = { username: 'admin', password: 'e2e-pass-1234' }
@@ -279,8 +279,10 @@ test('服务器页：以 pull 模式添加服务器，总览里看到它，取�
   await expect(page).toHaveURL(/\/servers\/e2e-node$/)
   await expect(page.getByRole('heading', { name: 'e2e-node' })).toBeVisible()
   await expect(page.getByText('等待首次连接')).toBeVisible()
-  await expect(page.getByText('pull', { exact: true })).toBeVisible()
-  await expect(page.getByText('203.0.113.9', { exact: true })).toBeVisible()
+  // 编辑、连接等标签页切走后仍然挂着（hidden），所以限定在「概况」里找
+  const overview = page.getByRole('tabpanel', { name: '概况' })
+  await expect(overview.getByText('pull', { exact: true })).toBeVisible()
+  await expect(overview.getByText('203.0.113.9', { exact: true })).toBeVisible()
 
   await page.getByRole('link', { name: '服务器列表' }).click()
   await expect(page.getByTestId('server-e2e-node')).toContainText('等待首次连接')
@@ -363,6 +365,46 @@ test('服务器页：列表页是实时推送，系统与日志看到错误，�
   await stats.getByRole('button', { name: '保存口径' }).click()
   await expect(stats.getByText('本周期物理网卡')).toHaveCount(0)
   await expect(stats.getByRole('definition').filter({ hasText: '内核统计' })).toBeVisible()
+})
+
+// m2-16：服务器编辑走 plan / apply。这台服务器从没下发过配置、节点也没连上，所以提交时节点那一步失败（partial_failure），
+// 但主控库已经写入；节点配置看到主控的错误；配置变更页有这份计划与快照，按快照生成回滚计划（不提交）；改批量门控阈值。
+test('服务器编辑、节点配置、配置变更页与批量门控', async () => {
+  await page.goto('/servers/e2e-node')
+  await page.getByRole('tab', { name: '编辑' }).click()
+  const edit = page.getByRole('tabpanel', { name: '编辑' })
+  await edit.getByLabel('地区', { exact: true }).fill('e2e-region')
+  await edit.getByRole('button', { name: '预演' }).click()
+  await expect(edit.getByTestId('plan-field-region')).toContainText('e2e-region')
+  await edit.getByRole('button', { name: '提交' }).click()
+  await expect(edit.getByTestId('apply-partial')).toContainText('配置已写入主控库')
+  await expect(edit.getByLabel('地区', { exact: true })).toHaveValue('e2e-region')
+
+  await page.getByRole('tab', { name: '节点配置' }).click()
+  const config = page.getByRole('tabpanel', { name: '节点配置' })
+  await config.getByRole('button', { name: '查看同步状态' }).click()
+  await expect(config.getByRole('alert')).toHaveCount(1)
+  await expect(config.getByTestId('config-status')).toHaveCount(0)
+
+  await page.goto('/changes')
+  await expect(page.locator('[data-testid^="plan-row-"]').first()).toBeVisible()
+  await page.getByRole('tab', { name: '快照' }).click()
+  const snapshot = page.locator('[data-testid^="snapshot-row-"]').first()
+  await expect(snapshot).toContainText('Server')
+  await snapshot.getByRole('button', { name: '回滚', exact: true }).click()
+  const dialog = page.getByRole('dialog')
+  await expect(dialog.getByTestId('plan-review')).toBeVisible()
+  await expect(dialog.getByRole('button', { name: '提交' })).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(dialog).toBeHidden()
+
+  await page.goto('/settings')
+  const single = page.getByTestId('batch-batch_single_threshold')
+  await single.getByLabel('单次上限').fill('10')
+  await single.getByRole('button', { name: '保存' }).click()
+  await page.getByRole('alertdialog').getByRole('button', { name: '确认' }).click()
+  await expect(page.getByText('已保存', { exact: true })).toBeVisible()
+  await expect(single.getByLabel('单次上限')).toHaveValue('10')
 })
 
 // 主控地址迁移会改主控地址并清空 Turnstile 的 key：这一条必须是整套测试的最后一步，以后加的测试放在它前面。

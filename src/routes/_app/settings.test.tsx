@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -26,6 +26,9 @@ const status = {
   turnstile_secret_key: '***',
   trusted_proxies: [],
   update_cdn_enabled: true,
+  batch_single_threshold: 5,
+  batch_window_threshold: 20,
+  batch_window_minutes: 15,
 }
 const settings = (version = 4, patch: { spec?: object; status?: object } = {}) => ({
   apiVersion: 'satchel/v1',
@@ -368,5 +371,45 @@ describe('迁移主控地址', () => {
     expect(result.textContent).toContain('已迁移到 https://new.example.com，新地址已推给 1 台在线节点。')
     expect(result.textContent).toContain('已清空 Turnstile 的两个 key，请为新域名重新填写。')
     await waitFor(() => expect(screen.getByLabelText('主控地址')).toHaveValue('https://new.example.com'))
+  })
+})
+
+// web-console「系统设置页」的批量门控（m2-16）。
+describe('批量门控', () => {
+  const batchCalls = (calls: FakeCall[]) => calls.filter((c) => c.url.startsWith('/api/v1/settings/batch-threshold/set/'))
+
+  it('修改批量门控阈值：取消不发请求；确认后路径带设置项与值，请求体带 resource-version 与 confirm', async () => {
+    const user = userEvent.setup()
+    const calls = server({ 'POST /api/v1/settings/batch-threshold/set/batch_single_threshold/10': { body: settings(5, { status: { batch_single_threshold: 10 } }) } })
+    renderApp('/settings')
+    const input = await screen.findByLabelText('单次上限')
+    expect(input).toHaveValue(5)
+    await user.clear(input)
+    await user.type(input, '10')
+    const row = input.closest('div.flex') as HTMLElement
+    await user.click(within(row).getByRole('button', { name: '保存' }))
+    expect(await screen.findByText('要确认的值：batch_single_threshold')).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: '取消' }))
+    await waitFor(() => expect(screen.queryByText('要确认的值：batch_single_threshold')).toBeNull())
+    expect(batchCalls(calls)).toHaveLength(0)
+    await user.click(within(row).getByRole('button', { name: '保存' }))
+    await user.click(await screen.findByRole('button', { name: '确认' }))
+    await waitFor(() => expect(batchCalls(calls)[0]?.body).toEqual({ 'resource-version': 4, confirm: 'batch_single_threshold' }))
+    await waitFor(() => expect(screen.getByLabelText('单次上限')).toHaveValue(10))
+  })
+
+  it('版本冲突：提示别人刚改过', async () => {
+    const user = userEvent.setup()
+    server({
+      'POST /api/v1/settings/batch-threshold/set/batch_window_minutes/30': { status: 409, body: { code: 'version_conflict', reason: 'SystemSettings 期望版本是 4，当前版本是 5', state: {}, next: '' } },
+    })
+    renderApp('/settings')
+    const input = await screen.findByLabelText('窗口分钟数')
+    await user.clear(input)
+    await user.type(input, '30')
+    await user.click(within(input.closest('div.flex') as HTMLElement).getByRole('button', { name: '保存' }))
+    await user.click(await screen.findByRole('button', { name: '确认' }))
+    expect(await screen.findByText('SystemSettings 期望版本是 4，当前版本是 5')).toBeTruthy()
+    expect(screen.getAllByText(/别人刚改过系统设置/).length).toBeGreaterThan(0)
   })
 })

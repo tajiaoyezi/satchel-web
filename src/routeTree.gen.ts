@@ -16,6 +16,7 @@ import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppAccountRouteImport } from './routes/_app/account'
 import { Route as AppAuditRouteImport } from './routes/_app/audit'
 import { Route as AppBackupsRouteImport } from './routes/_app/backups'
+import { Route as AppChangesRouteImport } from './routes/_app/changes'
 import { Route as AppDatabaseRouteImport } from './routes/_app/database'
 import { Route as AppJobsRouteImport } from './routes/_app/jobs'
 import { Route as AppLogsRouteImport } from './routes/_app/logs'
@@ -59,6 +60,11 @@ const AppAuditRoute = AppAuditRouteImport.update({
 const AppBackupsRoute = AppBackupsRouteImport.update({
   id: '/backups',
   path: '/backups',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppChangesRoute = AppChangesRouteImport.update({
+  id: '/changes',
+  path: '/changes',
   getParentRoute: () => AppRoute,
 } as any)
 const AppDatabaseRoute = AppDatabaseRouteImport.update({
@@ -119,6 +125,7 @@ export interface FileRoutesByFullPath {
   '/account': typeof AppAccountRoute
   '/audit': typeof AppAuditRoute
   '/backups': typeof AppBackupsRoute
+  '/changes': typeof AppChangesRoute
   '/database': typeof AppDatabaseRoute
   '/jobs': typeof AppJobsRoute
   '/logs': typeof AppLogsRoute
@@ -136,6 +143,7 @@ export interface FileRoutesByTo {
   '/account': typeof AppAccountRoute
   '/audit': typeof AppAuditRoute
   '/backups': typeof AppBackupsRoute
+  '/changes': typeof AppChangesRoute
   '/database': typeof AppDatabaseRoute
   '/jobs': typeof AppJobsRoute
   '/logs': typeof AppLogsRoute
@@ -156,6 +164,7 @@ export interface FileRoutesById {
   '/_app/account': typeof AppAccountRoute
   '/_app/audit': typeof AppAuditRoute
   '/_app/backups': typeof AppBackupsRoute
+  '/_app/changes': typeof AppChangesRoute
   '/_app/database': typeof AppDatabaseRoute
   '/_app/jobs': typeof AppJobsRoute
   '/_app/logs': typeof AppLogsRoute
@@ -177,6 +186,7 @@ export interface FileRouteTypes {
     | '/account'
     | '/audit'
     | '/backups'
+    | '/changes'
     | '/database'
     | '/jobs'
     | '/logs'
@@ -194,6 +204,7 @@ export interface FileRouteTypes {
     | '/account'
     | '/audit'
     | '/backups'
+    | '/changes'
     | '/database'
     | '/jobs'
     | '/logs'
@@ -213,6 +224,7 @@ export interface FileRouteTypes {
     | '/_app/account'
     | '/_app/audit'
     | '/_app/backups'
+    | '/_app/changes'
     | '/_app/database'
     | '/_app/jobs'
     | '/_app/logs'
@@ -281,6 +293,13 @@ declare module '@tanstack/react-router' {
       path: '/backups'
       fullPath: '/backups'
       preLoaderRoute: typeof AppBackupsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/changes': {
+      id: '/_app/changes'
+      path: '/changes'
+      fullPath: '/changes'
+      preLoaderRoute: typeof AppChangesRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/database': {
@@ -360,6 +379,7 @@ interface AppRouteChildren {
   AppAccountRoute: typeof AppAccountRoute
   AppAuditRoute: typeof AppAuditRoute
   AppBackupsRoute: typeof AppBackupsRoute
+  AppChangesRoute: typeof AppChangesRoute
   AppDatabaseRoute: typeof AppDatabaseRoute
   AppJobsRoute: typeof AppJobsRoute
   AppLogsRoute: typeof AppLogsRoute
@@ -377,6 +397,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAccountRoute: AppAccountRoute,
   AppAuditRoute: AppAuditRoute,
   AppBackupsRoute: AppBackupsRoute,
+  AppChangesRoute: AppChangesRoute,
   AppDatabaseRoute: AppDatabaseRoute,
   AppJobsRoute: AppJobsRoute,
   AppLogsRoute: AppLogsRoute,
