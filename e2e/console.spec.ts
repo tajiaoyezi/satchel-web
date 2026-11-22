@@ -1,7 +1,7 @@
 /// <reference lib="dom" />
 import fs from 'node:fs'
 
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page } from '@playwright/test'
 import { Secret, TOTP } from 'otpauth'
 
 // 端到端测试（web-console「网页的测试」）：对一个空库的主控按顺序跑向导、两步验证、两步登录、令牌新建与吊销、
@@ -405,6 +405,99 @@ test('服务器编辑、节点配置、配置变更页与批量门控', async ()
   await page.getByRole('alertdialog').getByRole('button', { name: '确认' }).click()
   await expect(page.getByText('已保存', { exact: true })).toBeVisible()
   await expect(single.getByLabel('单次上限')).toHaveValue('10')
+})
+
+// submitPlan 提交一份预演结果：前面的测试用掉了批量窗口时，主控要求危险类「批量」，会先弹危险确认（确认值由预演给出）。
+// e2e-node 没有连上，提交都以部分节点失败结束：主控库已写入、节点那一步失败。
+async function submitPlan(scope: Locator) {
+  await scope.getByRole('button', { name: '提交' }).click()
+  const confirm = page.getByRole('alertdialog')
+  const partial = scope.getByTestId('apply-partial')
+  await expect(confirm.or(partial)).toBeVisible()
+  if (await confirm.isVisible()) await confirm.getByRole('button', { name: '确认' }).click()
+  await expect(partial).toContainText('配置已写入主控库')
+}
+
+test('代理页：入站向导与一次性凭据、出站与探测、落地与批量规划、参考', async () => {
+  await page.goto('/proxy')
+  await page.getByRole('combobox', { name: '服务器' }).click()
+  await page.getByRole('option', { name: 'e2e-node' }).click()
+
+  // 入站向导：服务器默认取页面上选中的那台；主控生成的凭据只显示这一次
+  const inbounds = page.getByRole('tabpanel', { name: '入站' })
+  await inbounds.getByRole('button', { name: '新建入站' }).click()
+  let dialog = page.getByRole('dialog')
+  await expect(dialog.getByRole('combobox', { name: '服务器' })).toHaveText('e2e-node')
+  await dialog.getByRole('combobox', { name: '协议' }).click()
+  await page.getByRole('option', { name: /^Shadowsocks/ }).click()
+  await dialog.getByLabel('端口').fill('18443')
+  await dialog.getByRole('button', { name: '生成' }).click()
+  const result = dialog.getByTestId('wizard-result')
+  await expect(result.getByText('凭据只显示这一次')).toBeVisible()
+  await expect(result.locator('[data-testid^="copy-"]').first()).toBeVisible()
+  await result.getByRole('button', { name: '预演' }).click()
+  await expect(result.getByTestId('plan-review')).toBeVisible()
+  await submitPlan(result)
+  // 提交之后向导锁住；凭据还显示着，关闭前要确认
+  await expect(dialog.getByTestId('wizard-locked')).toBeVisible()
+  await page.keyboard.press('Escape')
+  await page.getByRole('alertdialog').getByRole('button', { name: '确认' }).click()
+  await expect(dialog).toBeHidden()
+  await expect(inbounds.locator('[data-testid^="inbound-row-"]').filter({ hasText: '18443' })).toBeVisible()
+
+  // 出站：新建一个 direct 出站并提交；探测要问节点，节点没有连上，看到主控返回的错误
+  await page.getByRole('tab', { name: '出站' }).click()
+  const outbounds = page.getByRole('tabpanel', { name: '出站' })
+  await outbounds.getByRole('button', { name: '新建出站' }).click()
+  dialog = page.getByRole('dialog')
+  await dialog.getByLabel('tag').fill('e2e-direct')
+  await dialog.getByLabel(/^协议/).fill('direct')
+  await dialog.getByRole('button', { name: '预演' }).click()
+  await expect(dialog.getByTestId('plan-review')).toBeVisible()
+  await submitPlan(dialog)
+  await page.keyboard.press('Escape')
+  const row = outbounds.locator('[data-testid^="outbound-row-"]').filter({ hasText: 'e2e-direct' })
+  await expect(row).toBeVisible()
+  await row.getByRole('button', { name: '探测' }).click()
+  dialog = page.getByRole('dialog')
+  await dialog.getByRole('button', { name: '探测' }).click()
+  await expect(dialog.getByRole('alert')).toBeVisible()
+  await expect(dialog.getByTestId('probe-result')).toHaveCount(0)
+  await page.keyboard.press('Escape')
+
+  // 落地规划（手工协议）：预演结果里有一个新出站与一条路由规则；不提交
+  await outbounds.getByRole('button', { name: '落地规划' }).click()
+  dialog = page.getByRole('dialog')
+  await dialog.getByLabel('新出站的 tag').fill('e2e-landing')
+  await dialog.getByRole('combobox', { name: '落地目标的来源' }).click()
+  await page.getByRole('option', { name: '手工填协议与 settings' }).click()
+  await dialog.getByLabel('协议').fill('socks')
+  await dialog.getByLabel('settings').fill('{"server":"203.0.113.10","server_port":1080}')
+  await dialog.getByRole('button', { name: '预演' }).click()
+  const landing = dialog.getByTestId('plan-review')
+  await expect(landing).toContainText('Outbound')
+  await expect(landing).toContainText('RoutingRule')
+  await page.keyboard.press('Escape')
+
+  // 批量新建入站（全部服务器，端口留空由主控各自分配）：预演结果列出 e2e-node；不提交
+  await page.getByRole('tab', { name: '入站' }).click()
+  await inbounds.getByRole('button', { name: '批量新建' }).click()
+  dialog = page.getByRole('dialog')
+  await dialog.getByRole('switch', { name: '全部服务器' }).click()
+  await dialog.getByRole('combobox', { name: '协议' }).click()
+  await page.getByRole('option', { name: /^Shadowsocks/ }).click()
+  await dialog.getByRole('button', { name: '预演' }).click()
+  await expect(dialog.getByTestId('plan-review')).toContainText('e2e-node')
+  await page.keyboard.press('Escape')
+
+  // 参考：协议矩阵里有 vless；生成一个 UUID
+  await page.getByRole('tab', { name: '参考' }).click()
+  const reference = page.getByRole('tabpanel', { name: '参考' })
+  await expect(reference.getByTestId('protocol-vless')).toBeVisible()
+  await reference.getByRole('combobox', { name: '类型' }).click()
+  await page.getByRole('option', { name: 'UUID', exact: true }).click()
+  await reference.getByRole('button', { name: '生成' }).click()
+  await expect(reference.getByTestId('copy-uuid')).toContainText(/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/)
 })
 
 // 主控地址迁移会改主控地址并清空 Turnstile 的 key：这一条必须是整套测试的最后一步，以后加的测试放在它前面。

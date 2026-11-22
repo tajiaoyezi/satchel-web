@@ -92,6 +92,20 @@ export const commands = {
   'snapshot list': { method: 'GET', path: '/api/v1/snapshot', list: true },
   'snapshot get': { method: 'GET', path: '/api/v1/snapshot/get/{id}' },
   'snapshot rollback': { method: 'POST', path: '/api/v1/snapshot/rollback' },
+  'inbound list': { method: 'GET', path: '/api/v1/inbound', list: true },
+  'inbound get': { method: 'GET', path: '/api/v1/inbound/get/{id}' },
+  'inbound protocols': { method: 'GET', path: '/api/v1/inbound/protocols' },
+  'inbound examples': { method: 'GET', path: '/api/v1/inbound/examples' },
+  'inbound keygen': { method: 'GET', path: '/api/v1/inbound/keygen' },
+  'inbound build': { method: 'GET', path: '/api/v1/inbound/build' },
+  'inbound batch list': { method: 'GET', path: '/api/v1/inbound/batch', list: true },
+  'inbound batch plan': { method: 'POST', path: '/api/v1/inbound/batch/plan' },
+  'outbound list': { method: 'GET', path: '/api/v1/outbound', list: true },
+  'outbound get': { method: 'GET', path: '/api/v1/outbound/get/{id}' },
+  'outbound probe': { method: 'POST', path: '/api/v1/outbound/probe/{id}' },
+  'outbound landing plan': { method: 'POST', path: '/api/v1/outbound/landing/plan' },
+  'outbound batch list': { method: 'GET', path: '/api/v1/outbound/batch', list: true },
+  'outbound batch plan': { method: 'POST', path: '/api/v1/outbound/batch/plan' },
 } as const satisfies Record<string, CommandRoute>
 
 export type CommandName = keyof typeof commands

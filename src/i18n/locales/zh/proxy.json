@@ -1,0 +1,261 @@
+{
+  "title": "代理",
+  "description": "节点上对外提供服务的入站，与节点向外连接的出站。修改都先预演、再提交；网页登录没有 secrets 权限，主控返回的密码、UUID、私钥等一律打码。",
+  "actions": {
+    "servers": "选择服务器",
+    "inboundList": "列出入站",
+    "inboundGet": "查看入站",
+    "inboundBuild": "入站向导",
+    "inboundBatchPlan": "批量新建入站",
+    "inboundBatchList": "入站批次记录",
+    "outboundList": "列出出站",
+    "outboundGet": "查看出站",
+    "outboundProbe": "探测出站",
+    "outboundLanding": "落地规划",
+    "outboundBatchPlan": "批量新建出站",
+    "outboundBatchList": "出站批次记录",
+    "protocols": "协议矩阵",
+    "examples": "配置示例",
+    "keygen": "密钥生成",
+    "plan": "预演",
+    "apply": "提交"
+  },
+  "server": {
+    "label": "服务器",
+    "all": "全部服务器",
+    "choose": "选择服务器"
+  },
+  "tabs": {
+    "inbounds": "入站",
+    "outbounds": "出站",
+    "batches": "批次记录",
+    "reference": "参考"
+  },
+  "kinds": {
+    "Inbound": "入站",
+    "Outbound": "出站"
+  },
+  "cols": {
+    "id": "编号",
+    "server": "服务器",
+    "tag": "tag",
+    "protocol": "协议",
+    "port": "端口",
+    "listen": "监听地址",
+    "enabled": "启用",
+    "sortOrder": "排序",
+    "group": "负载均衡组",
+    "probe": "最近一次探测"
+  },
+  "fields": {
+    "tls": "tls",
+    "transport": "transport",
+    "settings": "settings",
+    "probe": "probe（探测与分组配置）",
+    "isWarp": "WARP 出站"
+  },
+  "search": "查询",
+  "includeDeleted": "显示已删除",
+  "loadMore": "加载更多",
+  "view": "查看",
+  "preview": "预演",
+  "deleted": "已删除",
+  "enabled": "启用",
+  "disabled": "停用",
+  "yes": "是",
+  "no": "否",
+  "none": "无",
+  "masked": "已打码（网页登录没有 secrets 权限，主控不返回原文）",
+  "json": {
+    "bad": "JSON 解析不了，或者不是一个对象。",
+    "badField": "{{field}} 的 JSON 解析不了，或者不是一个对象。",
+    "maskedHint": "已打码；留空不改，填写时整体替换。",
+    "clearHint": "留空不改；要清空请填 {}。"
+  },
+  "edit": {
+    "title": "修改",
+    "noChange": "没有改动。"
+  },
+  "op": {
+    "delete": "删除",
+    "restore": "恢复",
+    "deleteTitle": "删除{{kind}} {{label}}（#{{id}}）",
+    "restoreTitle": "恢复{{kind}} {{label}}（#{{id}}）"
+  },
+  "batch": {
+    "targets": "目标服务器",
+    "all": "全部服务器",
+    "mode": "参数来源",
+    "modes": {
+      "wizard": "向导参数",
+      "template": "JSON 模板"
+    },
+    "template": "入站模板（JSON）",
+    "templateHint": "同一份入站配置写到每台服务器上；server_id 由主控按目标服务器填写。"
+  },
+  "inbounds": {
+    "description": "入站列表。打开「显示已删除」后，已删除的入站可以恢复。",
+    "protocolFilter": "按协议过滤",
+    "create": "新建入站",
+    "batch": "批量新建",
+    "empty": "没有入站。",
+    "detailTitle": "入站 #{{id}}",
+    "realityPublicKey": "Reality 公钥",
+    "batchTitle": "批量新建入站",
+    "batchDescription": "对几台服务器生成一份计划，提交后主控同时写下批次记录。",
+    "batchSecrets": "用向导参数时，每台服务器各自生成凭据；计划里的凭据是打码的，网页上看不到。需要时用带 secrets 权限的令牌在 CLI 查看。"
+  },
+  "wizard": {
+    "title": "新建入站",
+    "description": "选协议与组合，主控生成凭据与入站配置；预演之后再提交。",
+    "choose": "请选择",
+    "fields": {
+      "protocol": "协议",
+      "transport": "传输层",
+      "security": "安全层",
+      "port": "端口",
+      "tag": "tag",
+      "listen": "监听地址",
+      "sni": "SNI（server_name）",
+      "handshake": "握手目标",
+      "path": "路径",
+      "serviceName": "gRPC service_name",
+      "cipher": "加密算法",
+      "flow": "VLESS 流控",
+      "certPath": "证书路径",
+      "keyPath": "私钥路径",
+      "userName": "凭据用户名",
+      "sortOrder": "排序"
+    },
+    "tagHint": "留空时主控按「协议-端口」生成。",
+    "portHint": "留空由主控按服务器的端口范围与偷取模式分配；批量时每台各自分配。",
+    "cipherHint": "留空时主控用 2022-blake3-aes-128-gcm。",
+    "noSecrets": "密码与 UUID 由主控生成（向导的请求会出现在网址里，网页不发这两项）；需要自己指定时，在预演前改生成的配置。",
+    "generate": "生成",
+    "credentialsTitle": "凭据只显示这一次",
+    "credentialsNote": "关闭这个对话框之后，网页上再也看不到这些凭据。请现在保存；提交之前重新生成会换一套新的。",
+    "stale": "参数改过了，请重新生成。",
+    "locked": "已提交；这套凭据正在用，不能再生成。要再建一个，请关掉向导重新打开。",
+    "closeTitle": "关闭向导？",
+    "closeDescription": "关闭之后，网页上再也看不到这次生成的凭据。",
+    "config": "生成的配置",
+    "configHint": "这是要交给预演的变更，可以改。"
+  },
+  "credentials": {
+    "user_name": "用户名",
+    "uuid": "UUID",
+    "password": "密码",
+    "server_psk": "服务端 PSK",
+    "user_psk": "用户 PSK",
+    "reality_private_key": "Reality 私钥",
+    "reality_public_key": "Reality 公钥",
+    "short_id": "short_id",
+    "flow": "流控"
+  },
+  "outbounds": {
+    "description": "出站列表与最近一次探测。探测要问节点，节点不在线时显示主控的错误。",
+    "groupFilter": "按负载均衡组过滤",
+    "create": "新建出站",
+    "landing": "落地规划",
+    "batch": "批量新建",
+    "empty": "没有出站。",
+    "neverProbed": "未探测",
+    "ok": "可用",
+    "fail": "不可用",
+    "latency": "{{ms}} ms",
+    "probe": "探测",
+    "probeTitle": "探测出站 {{tag}}（{{server}}）",
+    "probeDescription": "经节点上运行中的内核，用这个出站访问探测地址。",
+    "probeUrl": "探测地址",
+    "probeUrlPlaceholder": "留空用主控的默认地址",
+    "probeTimeout": "超时（秒）",
+    "result": "结果",
+    "statusCode": "状态码",
+    "latencyLabel": "延迟",
+    "error": "错误",
+    "probedAt": "探测时间",
+    "detailTitle": "出站 #{{id}}",
+    "createTitle": "新建出站",
+    "protocolHint": "如 direct、socks、vless；取值由主控判定。",
+    "probeHint": "负载均衡组的探测配置，如 strategy、url、interval、tolerance；留空不发。",
+    "batchTitle": "批量新建出站",
+    "batchDescription": "对几台服务器生成一份计划，提交后主控同时写下批次记录。"
+  },
+  "landing": {
+    "title": "落地规划",
+    "description": "在源服务器上新建一个出站，并加一条把流量交给它的路由规则。",
+    "source": "源服务器",
+    "outboundTag": "新出站的 tag",
+    "scope": "作用范围",
+    "scopes": {
+      "server": "整台服务器",
+      "inbound": "某个入站"
+    },
+    "inboundTag": "入站",
+    "chooseInbound": "选择入站",
+    "inboundOption": "{{tag}}（{{protocol}}:{{port}}）",
+    "target": "落地目标",
+    "targetKind": "落地目标的来源",
+    "sources": {
+      "reference": "引用另一台服务器的入站",
+      "manual": "手工填协议与 settings"
+    },
+    "targetServer": "目标服务器",
+    "targetInbound": "目标入站",
+    "detour": "前置跳转（detour）",
+    "sortOrder": "路由排序",
+    "routingNote": "提交后会同时新建一条路由规则；路由规则的页面还没做，这次只在预演结果里看得到。"
+  },
+  "batches": {
+    "inboundTitle": "入站批次",
+    "outboundTitle": "出站批次",
+    "batchId": "批次编号",
+    "createdAt": "时间",
+    "empty": "没有批次记录。"
+  },
+  "reference": {
+    "protocolsTitle": "协议矩阵",
+    "kernel": "内核 {{version}}",
+    "category": "类别",
+    "transports": "传输层",
+    "securities": "安全层",
+    "auth": "认证方式",
+    "required": "必填字段",
+    "parallel": "并行移植线的协议",
+    "parallelItem": "{{protocol}}：{{notes}}",
+    "unsupported": "不支持",
+    "examplesTitle": "配置示例",
+    "placeholderKeys": "示例里的密钥是固定的占位值，不能直接用；新建入站请用向导，由主控生成。",
+    "filter": {
+      "protocol": "协议",
+      "transport": "传输层",
+      "security": "安全层"
+    },
+    "noExamples": "没有符合条件的示例。",
+    "keygenTitle": "密钥生成",
+    "keygenDescription": "由主控用加密随机源生成，结果不进浏览器缓存。",
+    "keyType": "类型",
+    "keyTypes": {
+      "all": "全部",
+      "uuid": "UUID",
+      "x25519": "Reality 密钥对",
+      "short-id": "short_id",
+      "password": "密码",
+      "ss2022": "SS2022 PSK",
+      "wireguard": "WireGuard 密钥对"
+    },
+    "cipher": "SS2022 算法",
+    "generate": "生成"
+  },
+  "keys": {
+    "uuid": "UUID",
+    "reality_private_key": "Reality 私钥",
+    "reality_public_key": "Reality 公钥",
+    "short_id": "short_id",
+    "password": "密码",
+    "ss2022_cipher": "SS2022 算法",
+    "ss2022_psk": "SS2022 PSK",
+    "wireguard_private_key": "WireGuard 私钥",
+    "wireguard_public_key": "WireGuard 公钥"
+  }
+}

@@ -3,7 +3,7 @@ import type { SessionEntry } from './api/session-entries'
 
 // 页面清单（master-web「页面清单与命令表一致」）：每一页的「可见操作 → CLI 命令」对照表。页面上能点的每个操作都要在这里，
 // 写对应的命令，或者会话入口；文案写资源文件里的 key（命名空间:路径），构建时换成中文写进 dist/satchel-web.json。
-// m1-11 交付前六页，m1-12 加八个运维页，m2-07 加服务器页（详情页 /servers/<名字> 属于同一页），m2-10 加节点维护与主控地址迁移，m2-14 加系统信息、网速、日志与流量统计口径，m2-16 加服务器编辑、节点配置、配置变更页与批量门控。人类专属命令的错误提示取第一个提供它的页面（master-web），所以这几条只写在它们本来的那一页。
+// m1-11 交付前六页，m1-12 加八个运维页，m2-07 加服务器页（详情页 /servers/<名字> 属于同一页），m2-10 加节点维护与主控地址迁移，m2-14 加系统信息、网速、日志与流量统计口径，m2-16 加服务器编辑、节点配置、配置变更页与批量门控，m2-18 加代理页（入站与出站）。人类专属命令的错误提示取第一个提供它的页面（master-web），所以这几条只写在它们本来的那一页。
 export interface ActionDef {
   labelKey: string
   command?: CommandName
@@ -94,6 +94,30 @@ export const pages: PageDef[] = [
       { labelKey: 'servers:actions.configTest', command: 'server config test' },
       { labelKey: 'servers:actions.plan', command: 'plan' },
       { labelKey: 'servers:actions.apply', command: 'apply' },
+    ],
+  },
+  {
+    id: 'proxy',
+    path: '/proxy',
+    titleKey: 'proxy:title',
+    actions: [
+      { labelKey: 'proxy:actions.servers', command: 'server list' },
+      { labelKey: 'proxy:actions.inboundList', command: 'inbound list' },
+      { labelKey: 'proxy:actions.inboundGet', command: 'inbound get' },
+      { labelKey: 'proxy:actions.inboundBuild', command: 'inbound build' },
+      { labelKey: 'proxy:actions.inboundBatchPlan', command: 'inbound batch plan' },
+      { labelKey: 'proxy:actions.inboundBatchList', command: 'inbound batch list' },
+      { labelKey: 'proxy:actions.outboundList', command: 'outbound list' },
+      { labelKey: 'proxy:actions.outboundGet', command: 'outbound get' },
+      { labelKey: 'proxy:actions.outboundProbe', command: 'outbound probe' },
+      { labelKey: 'proxy:actions.outboundLanding', command: 'outbound landing plan' },
+      { labelKey: 'proxy:actions.outboundBatchPlan', command: 'outbound batch plan' },
+      { labelKey: 'proxy:actions.outboundBatchList', command: 'outbound batch list' },
+      { labelKey: 'proxy:actions.protocols', command: 'inbound protocols' },
+      { labelKey: 'proxy:actions.examples', command: 'inbound examples' },
+      { labelKey: 'proxy:actions.keygen', command: 'inbound keygen' },
+      { labelKey: 'proxy:actions.plan', command: 'plan' },
+      { labelKey: 'proxy:actions.apply', command: 'apply' },
     ],
   },
   {
