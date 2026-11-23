@@ -106,6 +106,12 @@ export const commands = {
   'outbound landing plan': { method: 'POST', path: '/api/v1/outbound/landing/plan' },
   'outbound batch list': { method: 'GET', path: '/api/v1/outbound/batch', list: true },
   'outbound batch plan': { method: 'POST', path: '/api/v1/outbound/batch/plan' },
+  'routing list': { method: 'GET', path: '/api/v1/routing', list: true },
+  'routing get': { method: 'GET', path: '/api/v1/routing/get/{id}' },
+  'routing preset builtin': { method: 'GET', path: '/api/v1/routing/preset/builtin' },
+  'routing preset list': { method: 'GET', path: '/api/v1/routing/preset', list: true },
+  'routing preset save': { method: 'POST', path: '/api/v1/routing/preset/save' },
+  'routing preset delete': { method: 'POST', path: '/api/v1/routing/preset/delete/{id}' },
 } as const satisfies Record<string, CommandRoute>
 
 export type CommandName = keyof typeof commands

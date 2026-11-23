@@ -500,6 +500,52 @@ test('代理页：入站向导与一次性凭据、出站与探测、落地与�
   await expect(reference.getByTestId('copy-uuid')).toContainText(/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/)
 })
 
+test('代理页：用内置预设新建路由规则并提交、改排序并预演、保存与删除预设', async () => {
+  await page.goto('/proxy')
+  await page.getByRole('combobox', { name: '服务器' }).click()
+  await page.getByRole('option', { name: 'e2e-node' }).click()
+
+  // 预设：内置的 block-bt 用它新建规则，填入匹配条件与默认出站 reject；节点没有连上，提交后部分节点失败
+  await page.getByRole('tab', { name: '预设' }).click()
+  const presets = page.getByRole('tabpanel', { name: '预设' })
+  await presets.getByTestId('builtin-block-bt').getByRole('button', { name: '用它新建规则' }).click()
+  let dialog = page.getByRole('dialog')
+  await expect(dialog.getByRole('combobox', { name: '服务器' })).toHaveText('e2e-node')
+  await expect(dialog.getByRole('combobox', { name: '出站' })).toHaveText('reject（内置）')
+  await dialog.getByRole('button', { name: '预演' }).click()
+  await expect(dialog.getByTestId('plan-review')).toContainText('RoutingRule')
+  await submitPlan(dialog)
+  await page.keyboard.press('Escape')
+
+  // 路由：列表里有这条规则；把排序从 100 改成 50 并预演，看到 sort_order 的前后值；不提交
+  await page.getByRole('tab', { name: '路由' }).click()
+  const routing = page.getByRole('tabpanel', { name: '路由' })
+  const row = routing.locator('[data-testid^="routing-row-"]').filter({ hasText: 'bittorrent' })
+  await expect(row).toBeVisible()
+  await row.getByRole('button', { name: '查看' }).click()
+  dialog = page.getByRole('dialog')
+  await dialog.getByLabel('排序').fill('50')
+  await dialog.getByRole('button', { name: '预演' }).click()
+  const sortDiff = dialog.getByTestId('plan-field-sort_order')
+  await expect(sortDiff).toContainText('100')
+  await expect(sortDiff).toContainText('50')
+  await page.keyboard.press('Escape')
+
+  // 预设：保存一个预设，列表里有它；删除并确认，列表里没有了
+  await page.getByRole('tab', { name: '预设' }).click()
+  await presets.getByRole('button', { name: '保存预设' }).click()
+  dialog = page.getByRole('dialog')
+  await dialog.getByLabel('名字').fill('e2e-preset')
+  await dialog.getByLabel('匹配条件（match）').fill('{"domain_suffix":["example.com"]}')
+  await dialog.getByRole('button', { name: '保存' }).click()
+  await expect(dialog).toBeHidden()
+  const saved = presets.locator('[data-testid^="preset-row-"]').filter({ hasText: 'e2e-preset' })
+  await expect(saved).toBeVisible()
+  await saved.getByRole('button', { name: '删除' }).click()
+  await page.getByRole('alertdialog').getByRole('button', { name: '确认' }).click()
+  await expect(saved).toHaveCount(0)
+})
+
 // 主控地址迁移会改主控地址并清空 Turnstile 的 key：这一条必须是整套测试的最后一步，以后加的测试放在它前面。
 test('维护页：探测主控地址与卸载看到错误；系统设置页预检并迁移主控地址', async () => {
   // 节点没有连上：探测与卸载都由主控回错误

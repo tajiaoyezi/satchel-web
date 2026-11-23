@@ -11,16 +11,18 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { BatchesTab } from './-batches'
 import { InboundsTab } from './-inbounds'
 import { OutboundsTab } from './-outbounds'
+import { PresetsTab } from './-presets'
 import { ReferenceTab } from './-reference'
+import { RoutingTab } from './-routing'
 import { ServerPicker, serversQuery } from './-shared'
 
 export const Route = createFileRoute('/_app/proxy/')({ component: ProxyPage })
 
-const TABS = ['inbounds', 'outbounds', 'batches', 'reference'] as const
+const TABS = ['inbounds', 'outbounds', 'routing', 'presets', 'batches', 'reference'] as const
 type Tab = (typeof TABS)[number]
 
-// 代理页（web-console「代理页」，m2-18 design 第 2、3 条）：顶部选服务器（默认全部），下面四个标签页都保留挂载，
-// 切走再回来时表单、生成的凭据与预演结果都还在。下一个 change 再加「路由」与「预设」。
+// 代理页（web-console「代理页」，m2-18 design 第 2、3 条；m2-20 design 第 1 条）：顶部选服务器（默认全部），下面六个标签页都保留挂载，
+// 切走再回来时表单、生成的凭据与预演结果都还在。
 function ProxyPage() {
   const { t } = useTranslation('proxy')
   return (
@@ -35,7 +37,7 @@ function Proxy() {
   const servers = useQuery(serversQuery)
   const [serverId, setServerId] = useState<number | null>(null)
   const [tab, setTab] = useState<Tab>('inbounds')
-  // 打开过的标签页：「参考」第一次打开时才请求协议矩阵与示例
+  // 打开过的标签页：「预设」与「参考」第一次打开时才请求
   const [visited, setVisited] = useState<ReadonlySet<Tab>>(new Set(['inbounds']))
   const server = servers.data?.items.find((s) => s.id === serverId) ?? null
   const open = (v: string) => {
@@ -63,6 +65,12 @@ function Proxy() {
         </TabsContent>
         <TabsContent value="outbounds" forceMount hidden={tab !== 'outbounds'}>
           <OutboundsTab server={server} />
+        </TabsContent>
+        <TabsContent value="routing" forceMount hidden={tab !== 'routing'}>
+          <RoutingTab server={server} />
+        </TabsContent>
+        <TabsContent value="presets" forceMount hidden={tab !== 'presets'}>
+          <PresetsTab server={server} enabled={visited.has('presets')} />
         </TabsContent>
         <TabsContent value="batches" forceMount hidden={tab !== 'batches'}>
           <BatchesTab server={server} />

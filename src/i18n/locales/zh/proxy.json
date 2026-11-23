@@ -1,6 +1,6 @@
 {
   "title": "代理",
-  "description": "节点上对外提供服务的入站，与节点向外连接的出站。修改都先预演、再提交；网页登录没有 secrets 权限，主控返回的密码、UUID、私钥等一律打码。",
+  "description": "节点上对外提供服务的入站、节点向外连接的出站，以及决定流量走哪个出站的路由规则。修改都先预演、再提交；网页登录没有 secrets 权限，主控返回的密码、UUID、私钥等一律打码。",
   "actions": {
     "servers": "选择服务器",
     "inboundList": "列出入站",
@@ -14,6 +14,12 @@
     "outboundLanding": "落地规划",
     "outboundBatchPlan": "批量新建出站",
     "outboundBatchList": "出站批次记录",
+    "routingList": "列出路由规则",
+    "routingGet": "查看路由规则",
+    "presetBuiltin": "内置路由预设",
+    "presetList": "已保存的路由预设",
+    "presetSave": "保存路由预设",
+    "presetDelete": "删除路由预设",
     "protocols": "协议矩阵",
     "examples": "配置示例",
     "keygen": "密钥生成",
@@ -28,12 +34,15 @@
   "tabs": {
     "inbounds": "入站",
     "outbounds": "出站",
+    "routing": "路由",
+    "presets": "预设",
     "batches": "批次记录",
     "reference": "参考"
   },
   "kinds": {
     "Inbound": "入站",
-    "Outbound": "出站"
+    "Outbound": "出站",
+    "RoutingRule": "路由规则"
   },
   "cols": {
     "id": "编号",
@@ -45,14 +54,19 @@
     "enabled": "启用",
     "sortOrder": "排序",
     "group": "负载均衡组",
-    "probe": "最近一次探测"
+    "probe": "最近一次探测",
+    "match": "匹配条件",
+    "outbound": "出站",
+    "notes": "提示"
   },
   "fields": {
     "tls": "tls",
     "transport": "transport",
     "settings": "settings",
     "probe": "probe（探测与分组配置）",
-    "isWarp": "WARP 出站"
+    "isWarp": "WARP 出站",
+    "match": "匹配条件（match）",
+    "catchAll": "整机兜底（catch_all）"
   },
   "search": "查询",
   "includeDeleted": "显示已删除",
@@ -204,7 +218,55 @@
     "targetInbound": "目标入站",
     "detour": "前置跳转（detour）",
     "sortOrder": "路由排序",
-    "routingNote": "提交后会同时新建一条路由规则；路由规则的页面还没做，这次只在预演结果里看得到。"
+    "routingNote": "提交后会同时新建一条路由规则，可以在「路由」里查看与修改。"
+  },
+  "routing": {
+    "description": "路由规则按排序从小到大匹配，命中的流量交给规则的出站。调整顺序就是改排序值；打开「显示已删除」后，已删除的规则可以恢复。",
+    "create": "新建规则",
+    "empty": "没有路由规则。",
+    "catchAll": "整机兜底",
+    "inboundCatchAll": "入站全兜底",
+    "matchesAll": "匹配全部流量",
+    "shadowedBy": "被 {{ids}} 遮蔽",
+    "idSep": "、",
+    "detailTitle": "路由规则 #{{id}}",
+    "createTitle": "新建路由规则",
+    "fromPreset": "已填入预设「{{name}}」。",
+    "locked": "已提交。要再建一条，请关掉对话框重新打开。",
+    "opLabel": "{{server}} → {{outbound}}",
+    "chooseOutbound": "选择出站",
+    "outboundOption": {
+      "outbound": "{{tag}}",
+      "group": "{{tag}}（负载均衡组）",
+      "builtin": "{{tag}}（内置）",
+      "missing": "{{tag}}（这台服务器上没有）"
+    },
+    "outboundHint": "这台服务器的出站、负载均衡组与内置的 direct、block、reject；选了不存在的出站，预演时主控会报错。",
+    "matchHint": "sing-box 路由规则的匹配条件，JSON 对象。留空即 {}，会匹配这台服务器的全部流量，排在它后面的规则都不再生效。主控不接受 geoip、geosite 与 user。",
+    "catchAllHint": "打开后这条规则的出站成为整台服务器的默认出站，匹配条件不起作用。"
+  },
+  "presets": {
+    "builtinTitle": "内置预设",
+    "builtinDescription": "主控自带的常用规则。默认出站不一定在这台服务器上（如 warp），新建时可以改选。",
+    "savedTitle": "已保存的预设",
+    "savedDescription": "管理员保存的匹配条件。用它新建规则时只填匹配条件，出站另选。",
+    "name": "名字",
+    "ruleDescription": "说明",
+    "defaultOutbound": "默认出站",
+    "ruleSets": "rule_set",
+    "owner": "归属账号",
+    "updatedAt": "更新时间",
+    "use": "用它新建规则",
+    "save": "保存预设",
+    "saveSubmit": "保存",
+    "saveAs": "存为预设",
+    "saveAsHint": "把上面匹配条件框里的内容存成预设。",
+    "saved": "预设已保存。",
+    "delete": "删除",
+    "deleteTitle": "删除预设 {{name}}（#{{id}}）",
+    "deleteDescription": "预设删除后不能恢复；已经用它建好的路由规则不受影响。",
+    "deleted": "预设已删除。",
+    "empty": "没有保存的预设。"
   },
   "batches": {
     "inboundTitle": "入站批次",

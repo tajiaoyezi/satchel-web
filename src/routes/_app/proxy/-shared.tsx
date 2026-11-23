@@ -171,18 +171,21 @@ export function LocalError({ message }: { message: string }) {
 }
 
 // useProxyRefresh：主控库写入之后（成功或部分节点失败）让代理页的列表与详情都重新读取（design 第 11 条）。
+// 落地规划会顺带建一条路由规则，所以路由的列表与详情也在里面（m2-20 design 第 1 条）。
 export function useProxyRefresh() {
   const queryClient = useQueryClient()
   return () =>
     void Promise.all(
-      ['inbound list', 'inbound get', 'inbound batch list', 'outbound list', 'outbound get', 'outbound batch list'].map((k) => queryClient.invalidateQueries({ queryKey: [k] })),
+      ['inbound list', 'inbound get', 'inbound batch list', 'outbound list', 'outbound get', 'outbound batch list', 'routing list', 'routing get'].map((k) =>
+        queryClient.invalidateQueries({ queryKey: [k] }),
+      ),
     )
 }
 
-// ObjectOp 是删除或恢复一个入站或出站（design 第 6 条）：恢复要带已删除对象的 resourceVersion。
+// ObjectOp 是删除或恢复一个入站、出站或路由规则（design 第 6 条）：恢复要带已删除对象的 resourceVersion。
 export interface ObjectOp {
   op: 'delete' | 'restore'
-  kind: 'Inbound' | 'Outbound'
+  kind: 'Inbound' | 'Outbound' | 'RoutingRule'
   id: number
   resourceVersion: number
   label: string
