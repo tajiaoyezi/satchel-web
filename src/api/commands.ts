@@ -112,6 +112,18 @@ export const commands = {
   'routing preset list': { method: 'GET', path: '/api/v1/routing/preset', list: true },
   'routing preset save': { method: 'POST', path: '/api/v1/routing/preset/save' },
   'routing preset delete': { method: 'POST', path: '/api/v1/routing/preset/delete/{id}' },
+  'server service status': { method: 'GET', path: '/api/v1/server/service/status/{name}' },
+  'server service control': { method: 'POST', path: '/api/v1/server/service/control/{name}' },
+  'server nginx install': { method: 'POST', path: '/api/v1/server/nginx/install/{name}' },
+  'server nginx uninstall': { method: 'POST', path: '/api/v1/server/nginx/uninstall/{name}' },
+  'server nginx servers': { method: 'GET', path: '/api/v1/server/nginx/servers/{name}', list: true },
+  'server nginx clear-stream': { method: 'POST', path: '/api/v1/server/nginx/clear-stream/{name}' },
+  'website list': { method: 'GET', path: '/api/v1/website', list: true },
+  'website get': { method: 'GET', path: '/api/v1/website/get/{id}' },
+  'website build': { method: 'GET', path: '/api/v1/website/build' },
+  'website scan': { method: 'POST', path: '/api/v1/website/scan/{name}' },
+  'website templates': { method: 'GET', path: '/api/v1/website/templates' },
+  'website validate': { method: 'POST', path: '/api/v1/website/validate/{name}' },
 } as const satisfies Record<string, CommandRoute>
 
 export type CommandName = keyof typeof commands

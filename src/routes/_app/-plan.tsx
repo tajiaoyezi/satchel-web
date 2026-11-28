@@ -2,7 +2,7 @@ import { useMutation } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { ApiError, run } from '@/api/client'
+import { ApiError, run, type Verification } from '@/api/client'
 import { useDialogs } from '@/components/dialogs/DialogsProvider'
 import { ErrorNotice } from '@/components/ErrorNotice'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -14,6 +14,7 @@ import { formatTime } from '@/lib/format'
 
 // 配置的预演与提交（web-console「配置的预演与提交」，m2-16 design 第 2 条）：调用方各自调 plan、snapshot rollback 或
 // plans get 拿到计划，这里只管展示与提交。需要危险类时先弹危险确认，确认值是主控给的 confirm_hint；不提供 force。
+// 计划带 requires_human（改动主控同机服务器的网站或 nginx）时，危险确认之后再当场验证（m2-22 design 第 6 条）。
 // onApplied 在主控库已经写入时调用：成功，以及部分节点失败（partial_failure，结果取自错误的 state）。
 
 export interface FieldChange {
@@ -40,6 +41,16 @@ export interface ServerConfigDiff {
   inbounds: string[] | null
   before_config?: string
   after_config?: string
+  websites?: WebsiteConfigDiff[] | null
+  steal_config?: WebsiteConfigDiff | null
+}
+
+// WebsiteConfigDiff 是一台服务器上要写入或移除的一份 nginx 站点配置（m2-22 design 第 7 条）。
+export interface WebsiteConfigDiff {
+  domain: string
+  action: string // apply | remove
+  conf_path: string
+  conf?: string
 }
 
 export interface PlanView {
@@ -50,6 +61,7 @@ export interface PlanView {
   created_at: string
   required_dangers: string[] | null
   confirm_hint?: string
+  requires_human?: boolean
   batch_window?: { used: number; affected: number; single_threshold: number; window_threshold: number; window_minutes: number }
   objects: PlannedObject[] | null
   servers: ServerConfigDiff[] | null
@@ -85,6 +97,12 @@ export interface ServerApplyResult {
   error?: string
   rolled_back?: boolean
   rollback_error?: string
+  websites_applied?: string[] | null
+  websites_removed?: string[] | null
+  steal_applied?: boolean
+  steal_removed?: boolean
+  steal_conf_path?: string
+  nginx_reloaded?: boolean
 }
 
 export interface AppliedObject {
@@ -118,7 +136,7 @@ export function PlanReview({ plan, onApplied }: { plan: PlanView; onApplied?: (r
   const dialogs = useDialogs()
   const dangers = plan.required_dangers ?? []
   const apply = useMutation({
-    mutationFn: (confirm: string | undefined) => run<ApplyResult>('apply', { flags: { plan: plan.plan_id }, confirm }),
+    mutationFn: ({ confirm, verify }: { confirm?: string; verify?: Verification }) => run<ApplyResult>('apply', { flags: { plan: plan.plan_id }, confirm, verify }),
     onSuccess: (r) => onApplied?.(r),
     onError: (e) => {
       if (!(e instanceof ApiError) || e.code !== 'partial_failure') return
@@ -133,10 +151,20 @@ export function PlanReview({ plan, onApplied }: { plan: PlanView; onApplied?: (r
     },
   })
   const submit = async () => {
-    if (dangers.length === 0) return apply.mutate(undefined)
-    const names = dangers.map((d) => t(`dangers.${d}` as 'dangers.delete', { ns: 'tokens', defaultValue: d })).join('、')
-    const ok = await dialogs.confirm({ title: t('plan.confirmTitle', { dangers: names }), description: t('plan.confirmDescription'), value: plan.confirm_hint ?? '', destructive: true })
-    if (ok) apply.mutate(plan.confirm_hint)
+    let confirm: string | undefined
+    if (dangers.length > 0) {
+      const names = dangers.map((d) => t(`dangers.${d}` as 'dangers.delete', { ns: 'tokens', defaultValue: d })).join('、')
+      const ok = await dialogs.confirm({ title: t('plan.confirmTitle', { dangers: names }), description: t('plan.confirmDescription'), value: plan.confirm_hint ?? '', destructive: true })
+      if (!ok) return
+      confirm = plan.confirm_hint
+    }
+    let verify: Verification | undefined
+    if (plan.requires_human) {
+      const v = await dialogs.verify()
+      if (!v) return
+      verify = v
+    }
+    apply.mutate({ confirm, verify })
   }
   const partial = apply.error instanceof ApiError && apply.error.code === 'partial_failure' ? apply.error : null
   const bw = plan.batch_window
@@ -168,6 +196,7 @@ export function PlanReview({ plan, onApplied }: { plan: PlanView; onApplied?: (r
           </>
         )}
       </dl>
+      {plan.requires_human && <p data-testid="plan-requires-human">{t('plan.requiresHuman')}</p>}
 
       <section className="grid gap-2">
         <h3 className="font-medium">{t('plan.objects')}</h3>
@@ -274,6 +303,36 @@ function ServerDiff({ diff: s }: { diff: ServerConfigDiff }) {
         </div>
       )}
       {open && <ConfigDiff before={s.before_config ?? ''} after={s.after_config ?? ''} />}
+      {(s.websites ?? []).length > 0 && (
+        <div className="grid gap-1">
+          <p className="font-medium">{t('plan.websites')}</p>
+          {(s.websites ?? []).map((w) => (
+            <SiteConf key={`${w.action}-${w.domain}`} conf={w} label={w.domain} />
+          ))}
+        </div>
+      )}
+      {s.steal_config && <SiteConf conf={s.steal_config} label={t('plan.stealConfig')} />}
+    </div>
+  )
+}
+
+// SiteConf 是一份要写入或移除的 nginx 配置：写明动作、对象与配置文件路径，配置内容点了才展开。
+function SiteConf({ conf, label }: { conf: WebsiteConfigDiff; label: string }) {
+  const { t } = useTranslation('changes')
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="grid gap-1" data-testid={`plan-site-${conf.domain || 'steal'}`}>
+      <p className="flex flex-wrap items-center gap-2">
+        <Badge variant={conf.action === 'remove' ? 'destructive' : 'secondary'}>{t(`plan.websiteActions.${conf.action}` as 'plan.websiteActions.apply', { defaultValue: conf.action })}</Badge>
+        <span className="font-mono">{label}</span>
+        <span className="text-muted-foreground font-mono text-xs break-all">{conf.conf_path}</span>
+        {conf.conf && (
+          <Button variant="outline" size="sm" onClick={() => setOpen((v) => !v)}>
+            {open ? t('plan.hideConf') : t('plan.showConf')}
+          </Button>
+        )}
+      </p>
+      {open && <pre className="bg-muted max-h-96 overflow-auto rounded p-2 font-mono text-xs">{conf.conf}</pre>}
     </div>
   )
 }
@@ -329,10 +388,31 @@ function ServerResults({ results }: { results: ServerApplyResult[] }) {
               {r.error ? <span>{r.error}</span> : null}
               {r.rolled_back ? <span>{t('plan.rolledBack')}</span> : null}
               {r.rollback_error ? <span>{t('plan.rollbackError', { error: r.rollback_error })}</span> : null}
+              <NginxResult r={r} />
             </TableCell>
           </TableRow>
         ))}
       </TableBody>
     </Table>
+  )
+}
+
+// NginxResult 写出一台服务器上写入与移除的站点、偷自己配置的变化与 nginx 是否重载（m2-22 design 第 7 条）。
+function NginxResult({ r }: { r: ServerApplyResult }) {
+  const { t } = useTranslation('changes')
+  const lines = [
+    (r.websites_applied ?? []).length > 0 && t('plan.websitesApplied', { list: (r.websites_applied ?? []).join(', ') }),
+    (r.websites_removed ?? []).length > 0 && t('plan.websitesRemoved', { list: (r.websites_removed ?? []).join(', ') }),
+    r.steal_applied && t('plan.stealApplied', { path: r.steal_conf_path ?? '' }),
+    r.steal_removed && t('plan.stealRemoved'),
+    r.nginx_reloaded && t('plan.nginxReloaded'),
+  ].filter(Boolean)
+  if (lines.length === 0) return null
+  return (
+    <span className="grid" data-testid={`apply-nginx-${r.server_name}`}>
+      {lines.map((l) => (
+        <span key={String(l)}>{l}</span>
+      ))}
+    </span>
   )
 }

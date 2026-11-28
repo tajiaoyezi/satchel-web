@@ -147,3 +147,63 @@ describe('配置的预演与提交', () => {
     expect(screen.getByTestId('plan-skipped').textContent).toContain('Server #2：对象已软删除，不复活')
   })
 })
+
+// m2-22：改动主控同机服务器的网站或 nginx 的计划要当场验证；预演结果显示 nginx 站点配置，提交结果写明写入与重载。
+describe('配置的预演与提交：同机服务器与网站配置', () => {
+  const verifyAs = async (user: ReturnType<typeof userEvent.setup>) => {
+    await user.type(await screen.findByLabelText('密码'), 'secret12')
+    await user.click(screen.getByRole('button', { name: '确认' }))
+  }
+
+  it('带 requires_human：写明要当场验证；取消验证不发请求；验证后请求带 plan 与 verify-password', async () => {
+    const { calls, user } = renderPlan(planView({ requires_human: true }), { 'POST /api/v1/apply': { body: applied } })
+    expect(screen.getByTestId('plan-requires-human').textContent).toContain('提交时要当场验证')
+    await user.click(screen.getByRole('button', { name: '提交' }))
+    const dialog = within(await screen.findByRole('dialog', { name: '当场验证' }))
+    await user.click(dialog.getByRole('button', { name: '取消' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: '当场验证' })).toBeNull())
+    expect(applyCalls(calls)).toHaveLength(0)
+    await user.click(screen.getByRole('button', { name: '提交' }))
+    await verifyAs(user)
+    await waitFor(() => expect(applyCalls(calls)[0]?.body).toEqual({ plan: 7, 'verify-password': 'secret12' }))
+  })
+
+  it('既要危险类又要当场验证：先危险确认，再验证；请求带 confirm 与 verify-password', async () => {
+    const { calls, user } = renderPlan(planView({ requires_human: true, required_dangers: ['delete'], confirm_hint: '1' }), { 'POST /api/v1/apply': { body: applied } })
+    await user.click(screen.getByRole('button', { name: '提交' }))
+    expect(await screen.findByText('要确认的值：1')).toBeTruthy()
+    expect(screen.queryByRole('dialog', { name: '当场验证' })).toBeNull()
+    await user.click(screen.getByRole('button', { name: '确认' }))
+    await verifyAs(user)
+    await waitFor(() => expect(applyCalls(calls)[0]?.body).toEqual({ plan: 7, confirm: '1', 'verify-password': 'secret12' }))
+  })
+
+  it('预演结果里的网站配置：写明写入的站点与配置文件，点了才展开配置内容；提交结果写明写入的站点与 nginx 重载', async () => {
+    const base = planView().servers![0]!
+    const plan = planView({
+      servers: [
+        {
+          ...base,
+          websites: [{ domain: 'app.example.com', action: 'apply', conf_path: '/etc/nginx/servers/app.example.com.conf', conf: '# satchel-managed: website\nserver {}' }],
+          steal_config: { domain: '', action: 'remove', conf_path: '/etc/nginx/servers/satchel-steal.conf' },
+        },
+      ],
+    })
+    const done: ApplyResult = { ...applied, servers: [{ server_id: 1, server_name: 'hk-1', status: 'applied', applied_hash: 'cc', websites_applied: ['app.example.com'], nginx_reloaded: true }] }
+    const { user } = renderPlan(plan, { 'POST /api/v1/apply': { body: done } })
+    const site = within(screen.getByTestId('plan-site-app.example.com'))
+    expect(site.getByText('写入')).toBeTruthy()
+    expect(site.getByText('/etc/nginx/servers/app.example.com.conf')).toBeTruthy()
+    expect(screen.queryByText(/server \{\}/)).toBeNull()
+    await user.click(site.getByRole('button', { name: '查看配置' }))
+    expect(screen.getByText(/# satchel-managed: website/)).toBeTruthy()
+    const steal = within(screen.getByTestId('plan-site-steal'))
+    expect(steal.getByText('移除')).toBeTruthy()
+    expect(steal.getByText('偷自己的 nginx 配置')).toBeTruthy()
+    expect(steal.queryByRole('button', { name: '查看配置' })).toBeNull()
+    await user.click(screen.getByRole('button', { name: '提交' }))
+    const nginx = await screen.findByTestId('apply-nginx-hk-1')
+    expect(nginx.textContent).toContain('写入站点：app.example.com')
+    expect(nginx.textContent).toContain('nginx 已重载')
+  })
+})

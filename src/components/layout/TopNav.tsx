@@ -33,7 +33,7 @@ const OPS_PAGES = [
   { to: '/update', ns: 'update' },
 ] as const
 
-// 顶部导航与用户菜单（web-console「布局与导航」）：服务器、代理、系统设置与运维菜单只对管理员显示，权限仍由主控判定。
+// 顶部导航与用户菜单（web-console「布局与导航」）：服务器、代理、网站、系统设置与运维菜单只对管理员显示，权限仍由主控判定。
 export function TopNav() {
   const { t } = useTranslation()
   const account = useQuery(accountQuery).data
@@ -41,7 +41,13 @@ export function TopNav() {
   const boot = useBoot()
   const links = [
     { to: '/', label: t('nav.overview') },
-    ...(isAdmin ? [{ to: '/servers', label: t('nav.servers') }, { to: '/proxy', label: t('nav.proxy') }] : []),
+    ...(isAdmin
+      ? [
+          { to: '/servers', label: t('nav.servers') },
+          { to: '/proxy', label: t('nav.proxy') },
+          { to: '/websites', label: t('nav.websites') },
+        ]
+      : []),
     { to: '/tokens', label: t('nav.tokens') },
     ...(isAdmin ? [{ to: '/settings', label: t('nav.settings') }] : []),
   ] as const

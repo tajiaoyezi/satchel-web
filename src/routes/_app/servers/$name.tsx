@@ -26,6 +26,7 @@ import { formatBytes, formatSpeed, formatTime } from '@/lib/format'
 import { Maintenance } from './-maintenance'
 import { ConfigTab } from './-config'
 import { EditTab } from './-edit'
+import { ServicesTab } from './-services'
 import { DEFAULT_PORTS, Fields, REFRESH_MS, serverQuery } from './-shared'
 import { LogsTab, SystemTab, TrafficStats, type TrafficStatsView } from './-telemetry'
 
@@ -92,7 +93,7 @@ interface RestartResult {
   inbounds: string[]
 }
 
-type Tab = 'overview' | 'credentials' | 'traffic' | 'connections' | 'limit' | 'kick' | 'system' | 'logs' | 'config' | 'edit' | 'maintenance'
+type Tab = 'overview' | 'credentials' | 'traffic' | 'connections' | 'limit' | 'kick' | 'system' | 'logs' | 'config' | 'services' | 'edit' | 'maintenance'
 type FormTab = 'connections' | 'limit' | 'kick'
 
 // Target 是从流量表的一行带到连接、限速、踢线某一页的入站与凭据。三页各有一份：点哪个入口只重建哪一页，
@@ -121,6 +122,12 @@ function ServerPage() {
 function ServerDetail({ name }: { name: string }) {
   const { t } = useTranslation('servers')
   const [tab, setTab] = useState<Tab>('overview')
+  // 「服务」要问节点：第一次打开时才请求（m2-22 design 第 5 条）
+  const [servicesOpened, setServicesOpened] = useState(false)
+  const openTab = (v: string) => {
+    setTab(v as Tab)
+    if (v === 'services') setServicesOpened(true)
+  }
   const [targets, setTargets] = useState<Record<FormTab, Target>>({ connections: EMPTY_TARGET, limit: EMPTY_TARGET, kick: EMPTY_TARGET })
   // 推送只补实时网速，其它字段照旧来自 server get（m2-14 design 第 3 条）。
   const feed = useDashboardFeed()
@@ -141,8 +148,8 @@ function ServerDetail({ name }: { name: string }) {
           <RestartKernel name={name} />
         </div>
       </div>
-      <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
-        {/* 标签页有十一个：标签栏允许换行（m2-16 design 第 7 条） */}
+      <Tabs value={tab} onValueChange={openTab}>
+        {/* 标签页有十二个：标签栏允许换行（m2-16 design 第 7 条） */}
         <TabsList className="h-auto flex-wrap">
           <TabsTrigger value="overview">{t('detail.tabs.overview')}</TabsTrigger>
           <TabsTrigger value="credentials">{t('detail.tabs.credentials')}</TabsTrigger>
@@ -153,6 +160,7 @@ function ServerDetail({ name }: { name: string }) {
           <TabsTrigger value="system">{t('detail.tabs.system')}</TabsTrigger>
           <TabsTrigger value="logs">{t('detail.tabs.logs')}</TabsTrigger>
           <TabsTrigger value="config">{t('detail.tabs.config')}</TabsTrigger>
+          <TabsTrigger value="services">{t('detail.tabs.services')}</TabsTrigger>
           <TabsTrigger value="edit">{t('detail.tabs.edit')}</TabsTrigger>
           <TabsTrigger value="maintenance">{t('detail.tabs.maintenance')}</TabsTrigger>
         </TabsList>
@@ -187,6 +195,10 @@ function ServerDetail({ name }: { name: string }) {
         {/* 节点配置要问节点，点了才请求；编辑页的预演结果与删除后的恢复入口要留着：都保留挂载（m2-16 design 第 5、6 条） */}
         <TabsContent value="config" forceMount hidden={tab !== 'config'}>
           <ConfigTab name={name} />
+        </TabsContent>
+        {/* 服务页保留挂载：nginx 的安装与卸载是长任务，切走再回来进度与结果还在 */}
+        <TabsContent value="services" forceMount hidden={tab !== 'services'}>
+          <ServicesTab name={name} enabled={servicesOpened} />
         </TabsContent>
         <TabsContent value="edit" forceMount hidden={tab !== 'edit'}>
           <EditTab name={name} />

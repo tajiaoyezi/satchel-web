@@ -182,10 +182,10 @@ export function useProxyRefresh() {
     )
 }
 
-// ObjectOp 是删除或恢复一个入站、出站或路由规则（design 第 6 条）：恢复要带已删除对象的 resourceVersion。
+// ObjectOp 是删除或恢复一个入站、出站、路由规则或网站（design 第 6 条；网站页也用它）：恢复要带已删除对象的 resourceVersion。
 export interface ObjectOp {
   op: 'delete' | 'restore'
-  kind: 'Inbound' | 'Outbound' | 'RoutingRule'
+  kind: 'Inbound' | 'Outbound' | 'RoutingRule' | 'Website'
   id: number
   resourceVersion: number
   label: string

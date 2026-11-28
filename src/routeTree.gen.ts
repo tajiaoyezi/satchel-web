@@ -28,6 +28,7 @@ import { Route as AppUpdateRouteImport } from './routes/_app/update'
 import { Route as AppProxyIndexRouteImport } from './routes/_app/proxy/index'
 import { Route as AppServersIndexRouteImport } from './routes/_app/servers/index'
 import { Route as AppServersNameRouteImport } from './routes/_app/servers/$name'
+import { Route as AppWebsitesIndexRouteImport } from './routes/_app/websites/index'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -123,6 +124,11 @@ const AppServersNameRoute = AppServersNameRouteImport.update({
   path: '/servers/$name',
   getParentRoute: () => AppRoute,
 } as any)
+const AppWebsitesIndexRoute = AppWebsitesIndexRouteImport.update({
+  id: '/websites/',
+  path: '/websites/',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
@@ -143,6 +149,7 @@ export interface FileRoutesByFullPath {
   '/servers/$name': typeof AppServersNameRoute
   '/proxy/': typeof AppProxyIndexRoute
   '/servers/': typeof AppServersIndexRoute
+  '/websites/': typeof AppWebsitesIndexRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
@@ -163,6 +170,7 @@ export interface FileRoutesByTo {
   '/servers/$name': typeof AppServersNameRoute
   '/proxy': typeof AppProxyIndexRoute
   '/servers': typeof AppServersIndexRoute
+  '/websites': typeof AppWebsitesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -185,6 +193,7 @@ export interface FileRoutesById {
   '/_app/servers/$name': typeof AppServersNameRoute
   '/_app/proxy/': typeof AppProxyIndexRoute
   '/_app/servers/': typeof AppServersIndexRoute
+  '/_app/websites/': typeof AppWebsitesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -207,6 +216,7 @@ export interface FileRouteTypes {
     | '/servers/$name'
     | '/proxy/'
     | '/servers/'
+    | '/websites/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
@@ -227,6 +237,7 @@ export interface FileRouteTypes {
     | '/servers/$name'
     | '/proxy'
     | '/servers'
+    | '/websites'
   id:
     | '__root__'
     | '/_app'
@@ -248,6 +259,7 @@ export interface FileRouteTypes {
     | '/_app/servers/$name'
     | '/_app/proxy/'
     | '/_app/servers/'
+    | '/_app/websites/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -391,6 +403,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppServersNameRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/websites/': {
+      id: '/_app/websites/'
+      path: '/websites'
+      fullPath: '/websites/'
+      preLoaderRoute: typeof AppWebsitesIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
@@ -411,6 +430,7 @@ interface AppRouteChildren {
   AppServersNameRoute: typeof AppServersNameRoute
   AppProxyIndexRoute: typeof AppProxyIndexRoute
   AppServersIndexRoute: typeof AppServersIndexRoute
+  AppWebsitesIndexRoute: typeof AppWebsitesIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -430,6 +450,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppServersNameRoute: AppServersNameRoute,
   AppProxyIndexRoute: AppProxyIndexRoute,
   AppServersIndexRoute: AppServersIndexRoute,
+  AppWebsitesIndexRoute: AppWebsitesIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

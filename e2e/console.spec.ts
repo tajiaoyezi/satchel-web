@@ -546,6 +546,63 @@ test('代理页：用内置预设新建路由规则并提交、改排序并预�
   await expect(saved).toHaveCount(0)
 })
 
+test('网站页：向导新建静态站点并提交、改目标并预演、扫描与校验看到错误、模板；详情页的服务标签页看到错误', async () => {
+  await page.goto('/websites')
+  await page.getByRole('combobox', { name: '服务器' }).click()
+  await page.getByRole('option', { name: 'e2e-node' }).click()
+
+  // 站点：向导新建静态站点，服务器默认取页面上选中的那台；节点没有连上，提交后部分节点失败
+  const sites = page.getByRole('tabpanel', { name: '站点' })
+  await sites.getByRole('button', { name: '新建站点' }).click()
+  let dialog = page.getByRole('dialog')
+  await expect(dialog.getByRole('combobox', { name: '服务器' })).toHaveText('e2e-node')
+  await dialog.getByLabel('域名').fill('site.e2e.example')
+  await dialog.getByLabel('目标').fill('/var/www/e2e')
+  await dialog.getByRole('button', { name: '生成' }).click()
+  await expect(dialog.getByTestId('website-preview')).toContainText('site.e2e.example')
+  await dialog.getByRole('button', { name: '预演' }).click()
+  await expect(dialog.getByTestId('plan-review')).toContainText('Website')
+  await submitPlan(dialog)
+  await expect(dialog.getByTestId('website-wizard-locked')).toBeVisible()
+  await page.keyboard.press('Escape')
+  const row = sites.locator('[data-testid^="website-row-"]').filter({ hasText: 'site.e2e.example' })
+  await expect(row).toBeVisible()
+
+  // 改目标并预演，看到 target 的前后值；不提交
+  await row.getByRole('button', { name: '查看' }).click()
+  dialog = page.getByRole('dialog')
+  await dialog.getByLabel('目标').fill('/var/www/e2e2')
+  await dialog.getByRole('button', { name: '预演' }).click()
+  const diff = dialog.getByTestId('plan-field-target')
+  await expect(diff.getByRole('cell').nth(1)).toHaveText('/var/www/e2e')
+  await expect(diff.getByRole('cell').nth(2)).toHaveText('/var/www/e2e2')
+  await page.keyboard.press('Escape')
+
+  // 扫描与校验要问节点：看到主控返回的错误
+  await page.getByRole('tab', { name: '扫描' }).click()
+  const scan = page.getByRole('tabpanel', { name: '扫描' })
+  await scan.getByRole('button', { name: '扫描' }).click()
+  await expect(scan.getByRole('alert')).toBeVisible()
+  await expect(scan.getByTestId('scan-result')).toHaveCount(0)
+  await page.getByRole('tab', { name: '校验' }).click()
+  const validate = page.getByRole('tabpanel', { name: '校验' })
+  await validate.getByLabel('域名').fill('www.example.com')
+  await validate.getByRole('button', { name: '校验' }).click()
+  await expect(validate.getByRole('alert')).toBeVisible()
+  await expect(validate.getByTestId('validate-result')).toHaveCount(0)
+
+  // 模板里有伪装站模板
+  await page.getByRole('tab', { name: '模板' }).click()
+  await expect(page.getByRole('tabpanel', { name: '模板' }).getByTestId('template-decoy-landing')).toBeVisible()
+
+  // 详情页的「服务」：服务状态要问节点，看到主控返回的错误
+  await page.goto('/servers/e2e-node')
+  await page.getByRole('tab', { name: '服务' }).click()
+  const services = page.getByRole('tabpanel', { name: '服务' })
+  await expect(services.getByRole('alert').first()).toBeVisible()
+  await expect(services.getByTestId('service-status')).toHaveCount(0)
+})
+
 // 主控地址迁移会改主控地址并清空 Turnstile 的 key：这一条必须是整套测试的最后一步，以后加的测试放在它前面。
 test('维护页：探测主控地址与卸载看到错误；系统设置页预检并迁移主控地址', async () => {
   // 节点没有连上：探测与卸载都由主控回错误

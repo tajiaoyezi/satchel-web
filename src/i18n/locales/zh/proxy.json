@@ -42,7 +42,8 @@
   "kinds": {
     "Inbound": "入站",
     "Outbound": "出站",
-    "RoutingRule": "路由规则"
+    "RoutingRule": "路由规则",
+    "Website": "站点"
   },
   "cols": {
     "id": "编号",

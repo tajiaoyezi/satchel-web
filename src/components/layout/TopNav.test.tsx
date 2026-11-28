@@ -12,7 +12,7 @@ const emptyOverview = { body: { servers: { items: [], total: 0 }, users: { items
 
 // web-console「布局与导航」的「服务器只对管理员显示」。
 describe('顶部导航', () => {
-  it('管理员：依次是总览、服务器、代理、API 令牌、系统设置，后面是运维菜单', async () => {
+  it('管理员：依次是总览、服务器、代理、网站、API 令牌、系统设置，后面是运维菜单', async () => {
     opsServer({ 'GET /api/v1/overview': emptyOverview })
     renderApp('/')
     const nav = await screen.findByRole('navigation')
@@ -21,17 +21,18 @@ describe('顶部导航', () => {
       .getAllByRole('link')
       .map((el) => el.textContent)
       .slice(1) // 第一个是品牌
-    expect(links).toEqual(['总览', '服务器', '代理', 'API 令牌', '系统设置'])
+    expect(links).toEqual(['总览', '服务器', '代理', '网站', 'API 令牌', '系统设置'])
     expect(within(nav).getByRole('button', { name: '运维' })).toBeTruthy()
   })
 
-  it('普通用户：导航里没有服务器与代理', async () => {
+  it('普通用户：导航里没有服务器、代理与网站', async () => {
     opsServer({ 'GET /api/v1/overview': emptyOverview }, { ...adminAccount, username: 'carol', role: 'user' })
     renderApp('/')
     const nav = await screen.findByRole('navigation')
     await within(nav).findByRole('link', { name: 'API 令牌' })
     expect(within(nav).queryByRole('link', { name: '服务器' })).toBeNull()
     expect(within(nav).queryByRole('link', { name: '代理' })).toBeNull()
+    expect(within(nav).queryByRole('link', { name: '网站' })).toBeNull()
   })
 })
 

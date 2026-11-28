@@ -44,6 +44,15 @@
     "inbounds": "入站：{{inbounds}}",
     "showConfig": "查看 kernel.json 对比",
     "hideConfig": "收起对比",
+    "requiresHuman": "这份计划改动了主控同机服务器的网站或 nginx，提交时要当场验证密码与两步验证码。",
+    "websites": "nginx 站点配置",
+    "websiteActions": {
+      "apply": "写入",
+      "remove": "移除"
+    },
+    "stealConfig": "偷自己的 nginx 配置",
+    "showConf": "查看配置",
+    "hideConf": "收起配置",
     "diffTooLarge": "配置太长，不逐行对齐，左边是改前，右边是改后。",
     "skipped": "跳过的对象",
     "skippedItem": "{{kind}} #{{id}}：{{reason}}",
@@ -63,7 +72,12 @@
       "failed": "失败"
     },
     "rolledBack": "节点已回滚到旧配置。",
-    "rollbackError": "回滚失败：{{error}}"
+    "rollbackError": "回滚失败：{{error}}",
+    "websitesApplied": "写入站点：{{list}}",
+    "websitesRemoved": "移除站点：{{list}}",
+    "stealApplied": "写入偷自己配置 {{path}}",
+    "stealRemoved": "移除偷自己配置",
+    "nginxReloaded": "nginx 已重载"
   },
   "tabs": {
     "plans": "计划",
